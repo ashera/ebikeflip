@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { login } from "@/lib/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
+import { EbikeSketch } from "../_components/decor";
 
 export const dynamic = "force-dynamic";
 
@@ -25,8 +26,14 @@ export default async function LoginPage({
   const errorMessage = error ? ERRORS[error] ?? "Something went wrong." : null;
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-gradient-to-b from-ocean-100 via-sand-50 to-sand-100 px-6 py-16 dark:from-ocean-950 dark:via-ocean-900 dark:to-ocean-950">
-      <main className="w-full max-w-sm rounded-2xl border border-sand-200 bg-white/80 p-8 shadow-sm backdrop-blur dark:border-ocean-800 dark:bg-ocean-900/60">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-gradient-to-b from-ocean-100 via-sand-50 to-sand-100 px-6 py-16 dark:from-ocean-950 dark:via-ocean-900 dark:to-ocean-950">
+      <EbikeSketch
+        className="pointer-events-none absolute -left-10 bottom-10 -z-0 h-44 w-auto -rotate-6 text-ocean-700 opacity-[0.10] dark:text-ocean-200 dark:opacity-[0.14]"
+      />
+      <EbikeSketch
+        className="pointer-events-none absolute -right-10 top-10 -z-0 h-36 w-auto rotate-3 text-concrete-700 opacity-[0.08] dark:text-sand-100 dark:opacity-[0.10]"
+      />
+      <main className="relative z-10 w-full max-w-sm rounded-2xl border border-sand-200 bg-white/80 p-8 shadow-sm backdrop-blur dark:border-ocean-800 dark:bg-ocean-900/60">
         <h1 className="text-2xl font-semibold tracking-tight text-sand-900 dark:text-sand-50">
           Welcome back
         </h1>

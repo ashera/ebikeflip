@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { query } from "@/lib/db";
+import { EbikeSketch, WaveSketch } from "./_components/decor";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,17 @@ export default async function Home() {
             "linear-gradient(to top, var(--color-sand-200) 0%, transparent 100%)",
           opacity: 0.55,
         }}
+      />
+
+      {/* Sketched ebike decorations */}
+      <EbikeSketch
+        className="pointer-events-none absolute -bottom-6 -right-10 -z-0 h-56 w-auto -rotate-3 text-concrete-700 opacity-[0.10] dark:text-sand-100 dark:opacity-[0.13] sm:h-72"
+      />
+      <EbikeSketch
+        className="pointer-events-none absolute -left-12 top-24 -z-0 hidden h-40 w-auto rotate-[-12deg] text-ocean-700 opacity-[0.10] dark:text-ocean-200 dark:opacity-[0.14] md:block"
+      />
+      <WaveSketch
+        className="pointer-events-none absolute inset-x-10 bottom-4 -z-0 h-6 w-auto text-ocean-700 opacity-[0.18] dark:text-ocean-300"
       />
 
       <main className="relative z-10 flex w-full max-w-2xl flex-col gap-10">

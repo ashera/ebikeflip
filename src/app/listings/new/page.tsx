@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createListing } from "@/lib/actions/listings";
 import { getCurrentUser } from "@/lib/auth";
+import { EbikeSketch } from "../../_components/decor";
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +30,11 @@ export default async function NewListingPage({
   const errorMessage = error ? ERRORS[error] ?? "Something went wrong." : null;
 
   return (
-    <div className="flex-1 bg-gradient-to-b from-sand-50 to-sand-100 px-6 py-16 dark:from-ocean-950 dark:to-ocean-900">
-      <main className="mx-auto w-full max-w-xl">
+    <div className="relative flex-1 overflow-hidden bg-gradient-to-b from-sand-50 to-sand-100 px-6 py-16 dark:from-ocean-950 dark:to-ocean-900">
+      <EbikeSketch
+        className="pointer-events-none absolute -right-12 -top-4 -z-0 h-44 w-auto -rotate-6 text-concrete-700 opacity-[0.09] dark:text-sand-100 dark:opacity-[0.12]"
+      />
+      <main className="relative z-10 mx-auto w-full max-w-xl">
         <Link
           href="/listings"
           className="text-sm text-sand-600 hover:text-ocean-700 dark:text-sand-300 dark:hover:text-ocean-200"

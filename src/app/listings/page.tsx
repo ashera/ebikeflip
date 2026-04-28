@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { EbikeSketch } from "../_components/decor";
 
 export const dynamic = "force-dynamic";
 
@@ -49,8 +50,14 @@ export default async function ListingsPage() {
   const [result, user] = await Promise.all([fetchListings(), getCurrentUser()]);
 
   return (
-    <div className="flex-1 bg-gradient-to-b from-sand-50 to-sand-100 px-6 py-16 dark:from-ocean-950 dark:to-ocean-900">
-      <main className="mx-auto flex w-full max-w-2xl flex-col gap-8">
+    <div className="relative flex-1 overflow-hidden bg-gradient-to-b from-sand-50 to-sand-100 px-6 py-16 dark:from-ocean-950 dark:to-ocean-900">
+      <EbikeSketch
+        className="pointer-events-none absolute -right-10 top-10 -z-0 hidden h-44 w-auto rotate-3 text-concrete-700 opacity-[0.08] dark:text-sand-100 dark:opacity-[0.10] md:block"
+      />
+      <EbikeSketch
+        className="pointer-events-none absolute -left-12 bottom-24 -z-0 hidden h-36 w-auto -rotate-6 text-ocean-700 opacity-[0.08] dark:text-ocean-200 dark:opacity-[0.10] md:block"
+      />
+      <main className="relative z-10 mx-auto flex w-full max-w-2xl flex-col gap-8">
         <header className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <Link
