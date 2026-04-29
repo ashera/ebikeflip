@@ -56,7 +56,7 @@ export async function AuthNav() {
       <nav>
         <Link href="/listings">Browse</Link>
         <Link href="/listings/new">Sell</Link>
-        <a href="/api/health">Status</a>
+        <Link href="/status">Status</Link>
       </nav>
 
       <div className="actions">

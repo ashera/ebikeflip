@@ -30,3 +30,14 @@ export async function query<T extends Record<string, unknown>>(
 ) {
   return getPool().query<T>(text, params as unknown[] | undefined);
 }
+
+export function getPoolStats() {
+  const pool = global.__pgPool;
+  if (!pool) return { total: 0, idle: 0, waiting: 0, initialized: false };
+  return {
+    total: pool.totalCount,
+    idle: pool.idleCount,
+    waiting: pool.waitingCount,
+    initialized: true,
+  };
+}
