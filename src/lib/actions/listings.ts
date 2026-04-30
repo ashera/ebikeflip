@@ -112,6 +112,45 @@ export async function createListing(formData: FormData): Promise<void> {
   redirect(`/listings/${listingId}`);
 }
 
+export async function updateListing(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const listingId = String(formData.get("listingId") ?? "");
+  if (!(await ensureListingOwner(listingId, user.id))) {
+    redirect("/listings");
+  }
+
+  const title = String(formData.get("title") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const priceRaw = String(formData.get("price") ?? "");
+
+  if (!title || title.length > TITLE_MAX) {
+    redirect(`/listings/${listingId}/edit?error=invalid-title`);
+  }
+  if (description.length > DESCRIPTION_MAX) {
+    redirect(`/listings/${listingId}/edit?error=long-description`);
+  }
+  const priceCents = parsePriceToCents(priceRaw);
+  if (priceCents === null) {
+    redirect(`/listings/${listingId}/edit?error=invalid-price`);
+  }
+
+  await query(
+    `UPDATE listings
+        SET title = $1,
+            description = $2,
+            price_cents = $3
+      WHERE id = $4::bigint AND seller_id = $5::bigint`,
+    [title, description || null, priceCents, listingId, user.id],
+  );
+
+  revalidatePath(`/listings/${listingId}`);
+  revalidatePath(`/listings/${listingId}/edit`);
+  revalidatePath(`/listings`);
+  redirect(`/listings/${listingId}/edit?saved=1`);
+}
+
 async function ensureListingOwner(
   listingId: string,
   userId: string,

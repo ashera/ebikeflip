@@ -183,7 +183,7 @@ export default async function ListingDetailPage({
                 variant="quiet"
                 size="lg"
               >
-                Manage photos
+                Edit listing
               </ButtonLink>
             )}
           </div>

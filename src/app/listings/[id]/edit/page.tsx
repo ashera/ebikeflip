@@ -4,10 +4,17 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import {
   addListingImages,
-  setPrimaryImage,
   deleteListingImage,
+  setPrimaryImage,
+  updateListing,
 } from "@/lib/actions/listings";
-import { Button, ButtonLink, Field } from "../../../_components/ui";
+import {
+  Button,
+  ButtonLink,
+  Field,
+  Input,
+  Textarea,
+} from "../../../_components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -17,11 +24,16 @@ const ERRORS: Record<string, string> = {
   "too-large": "Each photo must be 5 MB or smaller.",
   "bad-type": "Photos must be JPEG, PNG, or WebP.",
   "upload-failed": "We couldn't save those photos — please try again.",
+  "invalid-title": "Title is required (200 characters or fewer).",
+  "long-description": "Description must be 5,000 characters or fewer.",
+  "invalid-price": "Enter a valid price in dollars (e.g. 1899 or 1899.00).",
 };
 
-type ListingHead = {
+type ListingRow = {
   id: string;
   title: string;
+  description: string | null;
+  price_cents: number;
   seller_id: string | null;
 };
 
@@ -33,15 +45,19 @@ type ImageRow = {
   mime_type: string;
 };
 
+function centsToDollarString(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
 export default async function EditListingPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const { id } = await params;
-  const { error } = await searchParams;
+  const { error, saved } = await searchParams;
   const errorMessage = error ? (ERRORS[error] ?? "Something went wrong.") : null;
 
   if (!/^\d+$/.test(id)) notFound();
@@ -49,8 +65,8 @@ export default async function EditListingPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
-  const listingRes = await query<ListingHead>(
-    `SELECT id::text, title, seller_id::text
+  const listingRes = await query<ListingRow>(
+    `SELECT id::text, title, description, price_cents, seller_id::text
        FROM listings
       WHERE id = $1::bigint
       LIMIT 1`,
@@ -76,7 +92,7 @@ export default async function EditListingPage({
           ← Back to listing
         </Link>
 
-        <p className="eyebrow">Manage photos</p>
+        <p className="eyebrow">Edit listing</p>
         <h1
           style={{
             fontFamily: "var(--font-display)",
@@ -90,9 +106,7 @@ export default async function EditListingPage({
           {listing.title}
         </h1>
         <p style={{ color: "var(--ink-3)", margin: "0 0 var(--s-7)" }}>
-          {images.length} of 10 photos.{" "}
-          {images.length > 0 &&
-            "Click ★ to set the default, ✕ to delete."}
+          Update the details, swap photos, or set a different default.
         </p>
 
         {errorMessage && (
@@ -100,10 +114,77 @@ export default async function EditListingPage({
             {errorMessage}
           </p>
         )}
+        {saved && !errorMessage && (
+          <p className="form-success" style={{ marginBottom: "var(--s-5)" }}>
+            Saved.
+          </p>
+        )}
 
         <section className="form-card" style={{ marginBottom: "var(--s-7)" }}>
-          <h2 style={{ font: "inherit", fontWeight: 700, margin: 0 }}>
-            Upload photos
+          <h2 className="card-heading">Listing details</h2>
+          <form
+            action={updateListing}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--s-5)",
+            }}
+          >
+            <input type="hidden" name="listingId" value={id} />
+
+            <Field label="Title" htmlFor="title">
+              <Input
+                id="title"
+                type="text"
+                name="title"
+                required
+                maxLength={200}
+                defaultValue={listing.title}
+              />
+            </Field>
+
+            <Field label="Price (USD)" htmlFor="price">
+              <Input
+                id="price"
+                type="text"
+                inputMode="decimal"
+                name="price"
+                required
+                pattern="^\d+(\.\d{1,2})?$"
+                defaultValue={centsToDollarString(listing.price_cents)}
+              />
+            </Field>
+
+            <Field label="Description" htmlFor="description">
+              <Textarea
+                id="description"
+                name="description"
+                rows={5}
+                maxLength={5000}
+                defaultValue={listing.description ?? ""}
+              />
+            </Field>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--s-3)",
+                justifyContent: "flex-end",
+              }}
+            >
+              <Button type="submit" variant="primary" iconRight="arrow">
+                Save changes
+              </Button>
+            </div>
+          </form>
+        </section>
+
+        <section className="form-card" style={{ marginBottom: "var(--s-7)" }}>
+          <h2 className="card-heading">
+            Photos{" "}
+            <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>
+              ({images.length} / 10)
+            </span>
           </h2>
           <form action={addListingImages} encType="multipart/form-data">
             <input type="hidden" name="listingId" value={id} />
