@@ -3,10 +3,11 @@ import type { RefOption } from "@/lib/ref-data";
 import { Button, Field, Input } from "./ui";
 
 export type ActiveFilters = {
-  make_id?: string;
-  bike_class_id?: string;
-  bike_category_id?: string;
-  condition_id?: string;
+  q?: string;
+  make_id?: string[];
+  bike_class_id?: string[];
+  bike_category_id?: string[];
+  condition_id?: string[];
   min_price?: string;
   max_price?: string;
   min_year?: string;
@@ -23,31 +24,45 @@ type Props = {
   };
 };
 
-function Select({
+export function activeFilterCount(f: ActiveFilters): number {
+  let n = 0;
+  if (f.q) n++;
+  if (f.make_id?.length) n++;
+  if (f.bike_class_id?.length) n++;
+  if (f.bike_category_id?.length) n++;
+  if (f.condition_id?.length) n++;
+  if (f.min_price) n++;
+  if (f.max_price) n++;
+  if (f.min_year) n++;
+  if (f.max_year) n++;
+  return n;
+}
+
+function ChipGroup({
   name,
   options,
-  defaultValue,
-  placeholder,
+  selected,
 }: {
   name: string;
   options: RefOption[];
-  defaultValue?: string;
-  placeholder: string;
+  selected: string[] | undefined;
 }) {
+  const sel = new Set(selected ?? []);
   return (
-    <select className="input" name={name} defaultValue={defaultValue ?? ""}>
-      <option value="">{placeholder}</option>
+    <div className="chip-group">
       {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.label}
-        </option>
+        <label key={o.id} className="chip-check">
+          <input
+            type="checkbox"
+            name={name}
+            value={o.id}
+            defaultChecked={sel.has(o.id)}
+          />
+          <span>{o.label}</span>
+        </label>
       ))}
-    </select>
+    </div>
   );
-}
-
-export function activeFilterCount(f: ActiveFilters): number {
-  return Object.values(f).filter((v) => v !== undefined && v !== "").length;
 }
 
 export function ListingsFilters({ active, options }: Props) {
@@ -55,49 +70,63 @@ export function ListingsFilters({ active, options }: Props) {
   return (
     <details className="filters" open={count > 0}>
       <summary className="filters-summary">
-        <span>Filters</span>
+        <span>Filters & search</span>
         {count > 0 && <span className="filters-count">{count} active</span>}
       </summary>
 
-      <form
-        method="get"
-        action="/listings"
-        className="filters-form"
-      >
-        <div className="filters-grid">
-          <Field label="Make" htmlFor="make_id">
-            <Select
-              name="make_id"
-              options={options.makes}
-              defaultValue={active.make_id}
-              placeholder="Any make"
-            />
-          </Field>
-          <Field label="Class" htmlFor="bike_class_id">
-            <Select
-              name="bike_class_id"
-              options={options.classes}
-              defaultValue={active.bike_class_id}
-              placeholder="Any class"
-            />
-          </Field>
-          <Field label="Category" htmlFor="bike_category_id">
-            <Select
-              name="bike_category_id"
-              options={options.categories}
-              defaultValue={active.bike_category_id}
-              placeholder="Any category"
-            />
-          </Field>
-          <Field label="Condition" htmlFor="condition_id">
-            <Select
-              name="condition_id"
-              options={options.conditions}
-              defaultValue={active.condition_id}
-              placeholder="Any condition"
-            />
-          </Field>
+      <form method="get" action="/listings" className="filters-form">
+        <Field
+          label="Search"
+          htmlFor="q"
+          help="Matches title, model, make, and description."
+        >
+          <Input
+            id="q"
+            name="q"
+            type="search"
+            placeholder="e.g. Specialized commuter, Bosch, cargo…"
+            defaultValue={active.q ?? ""}
+            maxLength={120}
+          />
+        </Field>
 
+        <fieldset className="filter-fieldset">
+          <legend>Make</legend>
+          <ChipGroup
+            name="make_id"
+            options={options.makes}
+            selected={active.make_id}
+          />
+        </fieldset>
+
+        <fieldset className="filter-fieldset">
+          <legend>Class</legend>
+          <ChipGroup
+            name="bike_class_id"
+            options={options.classes}
+            selected={active.bike_class_id}
+          />
+        </fieldset>
+
+        <fieldset className="filter-fieldset">
+          <legend>Category</legend>
+          <ChipGroup
+            name="bike_category_id"
+            options={options.categories}
+            selected={active.bike_category_id}
+          />
+        </fieldset>
+
+        <fieldset className="filter-fieldset">
+          <legend>Condition</legend>
+          <ChipGroup
+            name="condition_id"
+            options={options.conditions}
+            selected={active.condition_id}
+          />
+        </fieldset>
+
+        <div className="filters-grid">
           <Field label="Min price ($)" htmlFor="min_price">
             <Input
               id="min_price"

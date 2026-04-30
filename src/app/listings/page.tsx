@@ -19,19 +19,30 @@ const CURRENT_YEAR = new Date().getUTCFullYear();
 const MAX_YEAR = CURRENT_YEAR + 1;
 
 type RawSearchParams = {
-  make_id?: string;
-  bike_class_id?: string;
-  bike_category_id?: string;
-  condition_id?: string;
-  min_price?: string;
-  max_price?: string;
-  min_year?: string;
-  max_year?: string;
+  q?: string | string[];
+  make_id?: string | string[];
+  bike_class_id?: string | string[];
+  bike_category_id?: string | string[];
+  condition_id?: string | string[];
+  min_price?: string | string[];
+  max_price?: string | string[];
+  min_year?: string | string[];
+  max_year?: string | string[];
 };
 
-function validId(s: string | undefined): string | undefined {
-  if (!s) return undefined;
-  return /^\d+$/.test(s) ? s : undefined;
+function asArray(v: string | string[] | undefined): string[] {
+  if (v === undefined) return [];
+  return (Array.isArray(v) ? v : [v]).filter((s) => s.length > 0);
+}
+
+function asScalar(v: string | string[] | undefined): string | undefined {
+  if (v === undefined) return undefined;
+  const s = Array.isArray(v) ? v[0] : v;
+  return s && s.length > 0 ? s : undefined;
+}
+
+function validIds(arr: string[]): string[] {
+  return arr.filter((s) => /^\d+$/.test(s));
 }
 
 function validInt(
@@ -45,6 +56,10 @@ function validInt(
   return n;
 }
 
+function escapeLike(s: string): string {
+  return s.replace(/[\\%_]/g, (m) => `\\${m}`);
+}
+
 function buildFilters(raw: RawSearchParams): {
   active: ActiveFilters;
   where: string[];
@@ -54,47 +69,69 @@ function buildFilters(raw: RawSearchParams): {
   const params: unknown[] = [];
   const active: ActiveFilters = {};
 
-  const push = (clause: string, value: unknown, key: keyof ActiveFilters, raw: string) => {
+  const pushClause = (clause: string, value: unknown) => {
     params.push(value);
     where.push(clause.replace("$?", `$${params.length}`));
-    active[key] = raw;
   };
 
-  const makeId = validId(raw.make_id);
-  if (makeId) push("l.make_id = $?::bigint", makeId, "make_id", makeId);
-
-  const classId = validId(raw.bike_class_id);
-  if (classId)
-    push("l.bike_class_id = $?::bigint", classId, "bike_class_id", classId);
-
-  const categoryId = validId(raw.bike_category_id);
-  if (categoryId)
-    push(
-      "l.bike_category_id = $?::bigint",
-      categoryId,
-      "bike_category_id",
-      categoryId,
+  // Text search (q): single param reused across columns.
+  const q = asScalar(raw.q)?.slice(0, 120).trim();
+  if (q) {
+    active.q = q;
+    params.push(`%${escapeLike(q)}%`);
+    const n = params.length;
+    where.push(
+      `(l.title ILIKE $${n} ESCAPE '\\' OR l.description ILIKE $${n} ESCAPE '\\' OR l.model ILIKE $${n} ESCAPE '\\' OR mk.name ILIKE $${n} ESCAPE '\\')`,
     );
+  }
 
-  const conditionId = validId(raw.condition_id);
-  if (conditionId)
-    push("l.condition_id = $?::bigint", conditionId, "condition_id", conditionId);
+  // Multi-select FKs (use ANY)
+  const addArrayFilter = (
+    column: string,
+    rawArr: string[],
+    key:
+      | "make_id"
+      | "bike_class_id"
+      | "bike_category_id"
+      | "condition_id",
+  ) => {
+    const ids = validIds(rawArr);
+    if (ids.length === 0) return;
+    active[key] = ids;
+    params.push(ids.map((s) => Number(s)));
+    where.push(`${column} = ANY($${params.length}::bigint[])`);
+  };
 
-  const minPrice = validInt(raw.min_price, 0, 10_000_000);
-  if (minPrice !== undefined)
-    push("l.price_cents >= $?", minPrice * 100, "min_price", String(minPrice));
+  addArrayFilter("l.make_id", asArray(raw.make_id), "make_id");
+  addArrayFilter("l.bike_class_id", asArray(raw.bike_class_id), "bike_class_id");
+  addArrayFilter(
+    "l.bike_category_id",
+    asArray(raw.bike_category_id),
+    "bike_category_id",
+  );
+  addArrayFilter("l.condition_id", asArray(raw.condition_id), "condition_id");
 
-  const maxPrice = validInt(raw.max_price, 0, 10_000_000);
-  if (maxPrice !== undefined)
-    push("l.price_cents <= $?", maxPrice * 100, "max_price", String(maxPrice));
-
-  const minYear = validInt(raw.min_year, 1990, MAX_YEAR);
-  if (minYear !== undefined)
-    push("l.year >= $?", minYear, "min_year", String(minYear));
-
-  const maxYear = validInt(raw.max_year, 1990, MAX_YEAR);
-  if (maxYear !== undefined)
-    push("l.year <= $?", maxYear, "max_year", String(maxYear));
+  // Numeric ranges
+  const minPrice = validInt(asScalar(raw.min_price), 0, 10_000_000);
+  if (minPrice !== undefined) {
+    active.min_price = String(minPrice);
+    pushClause("l.price_cents >= $?", minPrice * 100);
+  }
+  const maxPrice = validInt(asScalar(raw.max_price), 0, 10_000_000);
+  if (maxPrice !== undefined) {
+    active.max_price = String(maxPrice);
+    pushClause("l.price_cents <= $?", maxPrice * 100);
+  }
+  const minYear = validInt(asScalar(raw.min_year), 1990, MAX_YEAR);
+  if (minYear !== undefined) {
+    active.min_year = String(minYear);
+    pushClause("l.year >= $?", minYear);
+  }
+  const maxYear = validInt(asScalar(raw.max_year), 1990, MAX_YEAR);
+  if (maxYear !== undefined) {
+    active.max_year = String(maxYear);
+    pushClause("l.year <= $?", maxYear);
+  }
 
   return { active, where, params };
 }
@@ -214,13 +251,19 @@ export default async function ListingsPage({
           {result.ok && (
             <span className="count">
               {count} {count === 1 ? "listing" : "listings"}
-              {filterCount > 0 && ` · ${filterCount} filter${filterCount === 1 ? "" : "s"}`}
+              {filterCount > 0 &&
+                ` · ${filterCount} filter${filterCount === 1 ? "" : "s"}`}
             </span>
           )}
         </div>
         <div className="left">
           {user ? (
-            <ButtonLink href="/listings/new" variant="primary" size="sm" icon="plus">
+            <ButtonLink
+              href="/listings/new"
+              variant="primary"
+              size="sm"
+              icon="plus"
+            >
               New listing
             </ButtonLink>
           ) : (
@@ -245,7 +288,7 @@ export default async function ListingsPage({
           <h3>{filterCount > 0 ? "No matches" : "No listings yet"}</h3>
           <p style={{ margin: "0 0 var(--s-5)" }}>
             {filterCount > 0
-              ? "Try widening your filters."
+              ? "Try widening your filters or clearing the search."
               : user
                 ? "Be the first to post one."
                 : "Register to post the first one."}
