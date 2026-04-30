@@ -447,8 +447,8 @@ textarea.input {
 }
 .listing:hover .img-wrap > .photo { transform: scale(1.04); }
 .listing .img-flag {
-  position: absolute; top: 12px; left: 12px;
-  display: flex; gap: 6px;
+  position: absolute; top: 12px; left: 12px; right: 12px;
+  display: flex; gap: 6px; flex-wrap: wrap;
 }
 .listing .body { padding: var(--s-5); display: flex; flex-direction: column; gap: var(--s-3); }
 .listing .meta-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -479,6 +479,48 @@ textarea.input {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.listing .subtitle {
+  color: var(--ink-3);
+  font-size: var(--t-body-s);
+  margin: -2px 0 0;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.listing .card-specs {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-2);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.listing .card-spec {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.listing .card-spec:last-child { border-bottom: 0; }
+.listing .card-spec dt {
+  color: var(--ink-4);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  align-self: center;
+}
+.listing .card-spec dd {
+  margin: 0;
+  color: var(--ink-1);
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .listing .price-row {
   display: flex; align-items: center; justify-content: space-between;

@@ -1,40 +1,71 @@
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ButtonLink } from "../_components/ui";
-import { ListingCard, listingFromRow } from "../_components/listing-card";
+import {
+  ListingCard,
+  listingFromRow,
+  type ListingCardRow,
+} from "../_components/listing-card";
 
 export const dynamic = "force-dynamic";
 
-type Listing = {
-  id: string;
-  title: string;
-  description: string | null;
-  price_cents: number;
-  created_at: string;
-  seller_email: string | null;
-  primary_image_id: string | null;
-};
-
 async function fetchListings(): Promise<
-  | { ok: true; listings: Listing[] }
+  | { ok: true; listings: ListingCardRow[] }
   | { ok: false; error: string }
 > {
   try {
-    const result = await query<Listing>(
+    const result = await query<ListingCardRow>(
       `SELECT l.id::text,
               l.title,
-              l.description,
               l.price_cents,
-              l.created_at::text,
               u.email AS seller_email,
               (
                 SELECT li.id::text FROM listing_images li
                   WHERE li.listing_id = l.id
                   ORDER BY li.is_primary DESC, li.position, li.id
                   LIMIT 1
-              ) AS primary_image_id
+              ) AS primary_image_id,
+              mk.name   AS make_name,
+              l.model,
+              l.year,
+              cg.label  AS condition_label,
+              bcl.label AS bike_class_label,
+              bcat.label AS bike_category_label,
+              l.location_postal,
+              l.frame_size,
+              fs.label  AS frame_style_label,
+              fm.label  AS frame_material_label,
+              gf.label  AS gender_fit_label,
+              ws.label  AS wheel_size_label,
+              st.label  AS suspension_type_label,
+              bt.label  AS brake_type_label,
+              mb.name   AS motor_brand_name,
+              mt.label  AS motor_type_label,
+              l.motor_watts_nominal,
+              l.battery_wh,
+              l.top_speed_mph,
+              l.range_miles_min,
+              l.range_miles_max,
+              dm.label  AS drive_mode_label,
+              l.mileage,
+              l.color,
+              l.weight_lbs::text,
+              l.has_warranty
          FROM listings l
-         LEFT JOIN users u ON u.id = l.seller_id
+         LEFT JOIN users            u    ON u.id    = l.seller_id
+         LEFT JOIN bike_makes       mk   ON mk.id   = l.make_id
+         LEFT JOIN condition_grades cg   ON cg.id   = l.condition_id
+         LEFT JOIN bike_classes     bcl  ON bcl.id  = l.bike_class_id
+         LEFT JOIN bike_categories  bcat ON bcat.id = l.bike_category_id
+         LEFT JOIN frame_styles     fs   ON fs.id   = l.frame_style_id
+         LEFT JOIN frame_materials  fm   ON fm.id   = l.frame_material_id
+         LEFT JOIN gender_fits      gf   ON gf.id   = l.gender_fit_id
+         LEFT JOIN wheel_sizes      ws   ON ws.id   = l.wheel_size_id
+         LEFT JOIN suspension_types st   ON st.id   = l.suspension_type_id
+         LEFT JOIN brake_types      bt   ON bt.id   = l.brake_type_id
+         LEFT JOIN motor_brands     mb   ON mb.id   = l.motor_brand_id
+         LEFT JOIN motor_types      mt   ON mt.id   = l.motor_type_id
+         LEFT JOIN drive_modes      dm   ON dm.id   = l.drive_mode_id
          ORDER BY l.created_at DESC
          LIMIT 50`,
     );
@@ -101,10 +132,7 @@ export default async function ListingsPage() {
       ) : (
         <div className="results-grid">
           {result.listings.map((row) => (
-            <ListingCard
-              key={row.id}
-              data={listingFromRow(row)}
-            />
+            <ListingCard key={row.id} data={listingFromRow(row)} />
           ))}
         </div>
       )}
