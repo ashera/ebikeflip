@@ -310,7 +310,7 @@ export default async function ListingDetailPage({
   const l = result.listing;
   const isOwner = currentUser != null && currentUser.id === l.seller_id;
   const isAdmin = currentUser?.isAdmin ?? false;
-  if (!l.is_published && !isOwner) notFound();
+  if (!l.is_published && !isOwner && !isAdmin) notFound();
   // Hide listings outside the viewer's region (unless they own it or are admin).
   if (
     l.region_id &&
@@ -338,12 +338,19 @@ export default async function ListingDetailPage({
         ← Back to browse
       </Link>
 
-      {!l.is_published && isOwner && (
+      {!l.is_published && (isOwner || isAdmin) && (
         <div className="hidden-banner">
           <strong>Hidden from browse.</strong>
           <span>
-            Only you can see this listing. Toggle visibility on the{" "}
-            <Link href={`/listings/${l.id}/edit`}>edit page</Link>.
+            {isOwner
+              ? "Only you can see this listing."
+              : "Visible to admins only."}{" "}
+            {isOwner && (
+              <>
+                Toggle visibility on the{" "}
+                <Link href={`/listings/${l.id}/edit`}>edit page</Link>.
+              </>
+            )}
           </span>
         </div>
       )}

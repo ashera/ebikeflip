@@ -17,6 +17,7 @@ export type ListingCardData = {
   stats: ListingCardStat[];
   highlights: [string | null, string | null, string | null];
   photo?: string;
+  isHidden?: boolean;
 };
 
 export type ListingCardRow = {
@@ -51,6 +52,7 @@ export type ListingCardRow = {
   color: string | null;
   weight_lbs: string | null;
   has_warranty: boolean | null;
+  is_published?: boolean | null;
 };
 
 function compactClass(label: string | null): string | null {
@@ -162,6 +164,7 @@ export function listingFromRow(row: ListingCardRow): ListingCardData {
     photo: row.primary_image_id
       ? `/api/listings/${row.id}/images/${row.primary_image_id}`
       : undefined,
+    isHidden: row.is_published === false,
   };
 }
 
@@ -172,7 +175,7 @@ export function ListingRow({ data }: { data: ListingCardData }) {
       .filter((s) => s !== PLACEHOLDER)
       .join(" · ") || PLACEHOLDER;
   return (
-    <article className="listing-row">
+    <article className={`listing-row ${data.isHidden ? "is-hidden" : ""}`}>
       <div className="listing-row-photo">
         {data.photo ? (
           <img src={data.photo} alt={data.title} loading="lazy" />
@@ -180,6 +183,9 @@ export function ListingRow({ data }: { data: ListingCardData }) {
           <span className="listing-row-photo-empty" aria-hidden>
             ebike
           </span>
+        )}
+        {data.isHidden && (
+          <span className="listing-row-hidden-flag">Hidden</span>
         )}
       </div>
 
@@ -263,6 +269,7 @@ export function ListingCard({ data }: { data: ListingCardData }) {
         ) : (
           <span className="listing-photo-empty">eBike photo</span>
         )}
+        {data.isHidden && <span className="listing-hidden-flag">Hidden</span>}
       </div>
 
       <div className="listing-stats">

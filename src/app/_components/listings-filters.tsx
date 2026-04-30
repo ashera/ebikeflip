@@ -2,6 +2,8 @@ import Link from "next/link";
 import type { RefOption } from "@/lib/ref-data";
 import { Button, Field, Input } from "./ui";
 
+export type VisibilityFilter = "all" | "published" | "hidden";
+
 export type ActiveFilters = {
   q?: string;
   make_id?: string[];
@@ -12,6 +14,7 @@ export type ActiveFilters = {
   max_price?: string;
   min_year?: string;
   max_year?: string;
+  visibility?: VisibilityFilter;
 };
 
 type Props = {
@@ -22,6 +25,7 @@ type Props = {
     categories: RefOption[];
     conditions: RefOption[];
   };
+  isAdmin?: boolean;
 };
 
 export function activeFilterCount(f: ActiveFilters): number {
@@ -35,6 +39,7 @@ export function activeFilterCount(f: ActiveFilters): number {
   if (f.max_price) n++;
   if (f.min_year) n++;
   if (f.max_year) n++;
+  if (f.visibility && f.visibility !== "all") n++;
   return n;
 }
 
@@ -65,8 +70,9 @@ function ChipGroup({
   );
 }
 
-export function ListingsFilters({ active, options }: Props) {
+export function ListingsFilters({ active, options, isAdmin }: Props) {
   const count = activeFilterCount(active);
+  const visibility: VisibilityFilter = active.visibility ?? "all";
   return (
     <details className="filters" open={count > 0}>
       <summary className="filters-summary">
@@ -125,6 +131,25 @@ export function ListingsFilters({ active, options }: Props) {
             selected={active.condition_id}
           />
         </fieldset>
+
+        {isAdmin && (
+          <fieldset className="filter-fieldset">
+            <legend>Visibility (admin)</legend>
+            <div className="chip-group">
+              {(["all", "published", "hidden"] as const).map((v) => (
+                <label key={v} className="chip-check">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value={v}
+                    defaultChecked={visibility === v}
+                  />
+                  <span>{v === "all" ? "All" : v === "published" ? "Published" : "Hidden"}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
 
         <div className="filters-grid">
           <Field label="Min price ($)" htmlFor="min_price">

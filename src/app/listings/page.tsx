@@ -32,6 +32,7 @@ type RawSearchParams = {
   min_year?: string | string[];
   max_year?: string | string[];
   view?: string | string[];
+  visibility?: string | string[];
 };
 
 function buildViewHref(view: ListingsView, sp: RawSearchParams): string {
@@ -79,15 +80,35 @@ function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 
-function buildFilters(raw: RawSearchParams): {
+function buildFilters(
+  raw: RawSearchParams,
+  isAdmin: boolean,
+): {
   active: ActiveFilters;
   where: string[];
   params: unknown[];
 } {
-  // Public browse only ever shows published listings.
-  const where: string[] = ["l.is_published = TRUE"];
+  // Non-admins only ever see published listings. Admins can request a
+  // visibility filter explicitly via ?visibility=published|hidden, or
+  // omit it (default "all") to see everything.
+  const where: string[] = [];
   const params: unknown[] = [];
   const active: ActiveFilters = {};
+
+  if (isAdmin) {
+    const v = asScalar(raw.visibility);
+    if (v === "published") {
+      where.push("l.is_published = TRUE");
+      active.visibility = "published";
+    } else if (v === "hidden") {
+      where.push("l.is_published = FALSE");
+      active.visibility = "hidden";
+    } else {
+      active.visibility = "all";
+    }
+  } else {
+    where.push("l.is_published = TRUE");
+  }
 
   const pushClause = (clause: string, value: unknown) => {
     params.push(value);
@@ -200,7 +221,8 @@ async function fetchListings(
               l.mileage,
               l.color,
               l.weight_lbs::text,
-              l.has_warranty
+              l.has_warranty,
+              l.is_published
          FROM listings l
          LEFT JOIN users            u    ON u.id    = l.seller_id
          LEFT JOIN bike_makes       mk   ON mk.id   = l.make_id
@@ -251,24 +273,33 @@ export default async function ListingsPage({
   searchParams: Promise<RawSearchParams>;
 }) {
   const sp = await searchParams;
-  const { active, where, params } = buildFilters(sp);
 
-  // Apply current region filter. NULL-region (legacy) listings stay visible
-  // until they're backfilled by the seller.
-  const regionId = await getCurrentRegionId();
-  if (regionId) {
-    params.push(regionId);
-    where.push(`(l.region_id = $${params.length}::bigint OR l.region_id IS NULL)`);
+  // Need user before building filters so admin gets the visibility option.
+  const user = await getCurrentUser();
+  const isAdmin = user?.isAdmin ?? false;
+
+  const { active, where, params } = buildFilters(sp, isAdmin);
+
+  // Apply current region filter for non-admins. NULL-region (legacy) listings
+  // stay visible until they're backfilled. Admins see across regions so they
+  // can audit listings sitewide.
+  if (!isAdmin) {
+    const regionId = await getCurrentRegionId();
+    if (regionId) {
+      params.push(regionId);
+      where.push(
+        `(l.region_id = $${params.length}::bigint OR l.region_id IS NULL)`,
+      );
+    }
   }
 
-  const whereSql = `WHERE ${where.join(" AND ")}`;
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   const view: ListingsView =
     (Array.isArray(sp.view) ? sp.view[0] : sp.view) === "grid" ? "grid" : "cards";
 
-  const [result, user, options] = await Promise.all([
+  const [result, options] = await Promise.all([
     fetchListings(whereSql, params),
-    getCurrentUser(),
     loadFilterOptions(),
   ]);
 
@@ -307,7 +338,7 @@ export default async function ListingsPage({
         </div>
       </div>
 
-      <ListingsFilters active={active} options={options} />
+      <ListingsFilters active={active} options={options} isAdmin={isAdmin} />
 
       {!result.ok ? (
         <div className="form-error">

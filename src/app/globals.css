@@ -600,6 +600,37 @@ textarea.input {
   text-transform: uppercase;
   color: var(--ink-4);
 }
+.listing-hidden-flag {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: oklch(35% 0.1 70);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  z-index: 1;
+}
+.listing-row.is-hidden { opacity: 0.7; border-style: dashed; }
+.listing-row-hidden-flag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  background: oklch(35% 0.1 70);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--r-pill);
+  font-weight: 700;
+}
+.listing-row-photo { position: relative; }
 
 .listing-stats {
   display: grid;
