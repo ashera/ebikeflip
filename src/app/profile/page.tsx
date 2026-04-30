@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { updateLocation } from "@/lib/actions/auth";
+import { suggestLocationFromIp } from "@/lib/geo";
 import { Button, Field, Input } from "../_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function ProfilePage({
   if (!user) redirect("/login");
 
   const { saved } = await searchParams;
+  const suggestion = !user.location ? await suggestLocationFromIp() : null;
 
   return (
     <div className="page page--pad">
@@ -47,6 +49,25 @@ export default async function ProfilePage({
             Shown next to your email in the menu bar and on your listings.
           </p>
 
+          {suggestion && (
+            <div className="ip-suggest">
+              <div className="ip-suggest-text">
+                <strong>Looks like you&rsquo;re in {suggestion.display}.</strong>
+                <span> Use this as your location?</span>
+              </div>
+              <form action={updateLocation}>
+                <input
+                  type="hidden"
+                  name="location"
+                  value={suggestion.display}
+                />
+                <Button type="submit" variant="primary" size="sm" iconRight="check">
+                  Use {suggestion.display}
+                </Button>
+              </form>
+            </div>
+          )}
+
           <form
             action={updateLocation}
             style={{
@@ -58,7 +79,11 @@ export default async function ProfilePage({
             <Field
               label="City or postal code"
               htmlFor="location"
-              help="Optional. Free text — anything you want buyers to see."
+              help={
+                suggestion
+                  ? "Or type your own — IP-based suggestions are approximate."
+                  : "Optional. Free text — anything you want buyers to see."
+              }
             >
               <Input
                 id="location"
