@@ -323,21 +323,33 @@ CREATE TABLE IF NOT EXISTS regions (
   id            BIGSERIAL    PRIMARY KEY,
   slug          TEXT         UNIQUE NOT NULL,
   label         TEXT         NOT NULL,
+  short_name    TEXT,
   match_pattern TEXT,
   sort_order    INTEGER      NOT NULL DEFAULT 0,
   is_active     BOOLEAN      NOT NULL DEFAULT TRUE
 );
+
+ALTER TABLE regions
+  ADD COLUMN IF NOT EXISTS short_name TEXT;
 
 ALTER TABLE listings
   ADD COLUMN IF NOT EXISTS region_id BIGINT REFERENCES regions(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS listings_region_idx ON listings (region_id);
 
-INSERT INTO regions (slug, label, match_pattern, sort_order) VALUES
-  ('us-tx-austin',    'Austin Metro, TX',  'Austin, Round Rock, Pflugerville, Cedar Park', 10),
-  ('us-ca-bay-area',  'Bay Area, CA',      'San Francisco, Oakland, San Jose, Berkeley, Palo Alto', 20),
-  ('us-ny-nyc',       'New York City, NY', 'New York, Brooklyn, Queens, Manhattan, Bronx', 30),
-  ('us-wa-seattle',   'Seattle, WA',       'Seattle, Bellevue, Redmond', 40),
-  ('uk-london',       'London, UK',        'London', 50),
-  ('ca-toronto',      'Toronto, ON',       'Toronto, Mississauga', 60)
+INSERT INTO regions (slug, label, short_name, match_pattern, sort_order) VALUES
+  ('us-tx-austin',    'Austin Metro, TX',  'Austin Metro',   'Austin, Round Rock, Pflugerville, Cedar Park', 10),
+  ('us-ca-bay-area',  'Bay Area, CA',      'Bay Area',       'San Francisco, Oakland, San Jose, Berkeley, Palo Alto', 20),
+  ('us-ny-nyc',       'New York City, NY', 'New York City',  'New York, Brooklyn, Queens, Manhattan, Bronx', 30),
+  ('us-wa-seattle',   'Seattle, WA',       'Seattle',        'Seattle, Bellevue, Redmond', 40),
+  ('uk-london',       'London, UK',        'London',         'London', 50),
+  ('ca-toronto',      'Toronto, ON',       'Toronto',        'Toronto, Mississauga', 60)
 ON CONFLICT (slug) DO NOTHING;
+
+-- Backfill short_name for any seeded rows that pre-date this column.
+UPDATE regions SET short_name = 'Austin Metro'  WHERE slug = 'us-tx-austin'   AND short_name IS NULL;
+UPDATE regions SET short_name = 'Bay Area'      WHERE slug = 'us-ca-bay-area' AND short_name IS NULL;
+UPDATE regions SET short_name = 'New York City' WHERE slug = 'us-ny-nyc'      AND short_name IS NULL;
+UPDATE regions SET short_name = 'Seattle'       WHERE slug = 'us-wa-seattle'  AND short_name IS NULL;
+UPDATE regions SET short_name = 'London'        WHERE slug = 'uk-london'      AND short_name IS NULL;
+UPDATE regions SET short_name = 'Toronto'       WHERE slug = 'ca-toronto'     AND short_name IS NULL;

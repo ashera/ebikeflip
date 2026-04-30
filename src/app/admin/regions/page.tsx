@@ -57,13 +57,23 @@ export default async function AdminRegionsPage({
             <Field
               label="Label"
               htmlFor="label"
-              help="Display name shown to users."
+              help="Full display name (used in picker, topbar)."
             >
               <Input id="label" name="label" required placeholder="Austin Metro, TX" />
             </Field>
+            <Field
+              label="Short name"
+              htmlFor="short_name"
+              help='Used in prose like "The {Austin Metro} eBike marketplace". Strips state/country.'
+            >
+              <Input id="short_name" name="short_name" placeholder="Austin Metro" />
+            </Field>
+          </div>
+          <div className="grid-2">
             <Field label="Slug" htmlFor="slug" help="Optional, auto-derived if blank.">
               <Input id="slug" name="slug" placeholder="auto" />
             </Field>
+            <div />
           </div>
           <Field
             label="Match patterns"
@@ -106,6 +116,7 @@ export default async function AdminRegionsPage({
         <div className="ref-table">
           <div className="ref-row region-row ref-head">
             <div>Label</div>
+            <div>Short name</div>
             <div>Slug</div>
             <div>Match patterns</div>
             <div>Sort</div>
@@ -125,6 +136,14 @@ export default async function AdminRegionsPage({
                   defaultValue={r.label}
                   required
                   className="--square"
+                />
+              </div>
+              <div>
+                <Input
+                  name="short_name"
+                  defaultValue={r.short_name ?? ""}
+                  className="--square"
+                  placeholder="(uses label)"
                 />
               </div>
               <div className="ref-slug">{r.slug}</div>

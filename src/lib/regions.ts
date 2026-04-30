@@ -9,15 +9,21 @@ export type Region = {
   id: string;
   slug: string;
   label: string;
+  short_name: string | null;
   match_pattern: string | null;
   sort_order: number;
   is_active: boolean;
 };
 
+/** Human-friendly short name for prose ("Austin Metro"). Falls back to label. */
+export function regionShortName(r: Region): string {
+  return r.short_name && r.short_name.length > 0 ? r.short_name : r.label;
+}
+
 export async function listActiveRegions(): Promise<Region[]> {
   try {
     const result = await query<Region>(
-      `SELECT id::text, slug, label, match_pattern, sort_order, is_active
+      `SELECT id::text, slug, label, short_name, match_pattern, sort_order, is_active
          FROM regions
         WHERE is_active = TRUE
         ORDER BY sort_order, id`,
@@ -31,7 +37,7 @@ export async function listActiveRegions(): Promise<Region[]> {
 export async function listAllRegions(): Promise<Region[]> {
   try {
     const result = await query<Region>(
-      `SELECT id::text, slug, label, match_pattern, sort_order, is_active
+      `SELECT id::text, slug, label, short_name, match_pattern, sort_order, is_active
          FROM regions
         ORDER BY sort_order, id`,
     );

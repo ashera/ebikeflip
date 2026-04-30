@@ -61,6 +61,8 @@ export async function createRegion(formData: FormData): Promise<void> {
   const slug = slugInput ? slugify(slugInput) : slugify(label);
   if (!slug) redirect("/admin/regions?error=missing-slug");
 
+  const short_name =
+    String(formData.get("short_name") ?? "").trim() || null;
   const match_pattern =
     String(formData.get("match_pattern") ?? "").trim() || null;
   const sort_order = Number.parseInt(
@@ -69,10 +71,16 @@ export async function createRegion(formData: FormData): Promise<void> {
   );
 
   await query(
-    `INSERT INTO regions (slug, label, match_pattern, sort_order)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO regions (slug, label, short_name, match_pattern, sort_order)
+     VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (slug) DO NOTHING`,
-    [slug, label, match_pattern, Number.isFinite(sort_order) ? sort_order : 0],
+    [
+      slug,
+      label,
+      short_name,
+      match_pattern,
+      Number.isFinite(sort_order) ? sort_order : 0,
+    ],
   );
 
   revalidatePath("/admin/regions");
@@ -88,6 +96,8 @@ export async function updateRegion(formData: FormData): Promise<void> {
   const label = String(formData.get("label") ?? "").trim();
   if (!label) redirect("/admin/regions?error=missing-label");
 
+  const short_name =
+    String(formData.get("short_name") ?? "").trim() || null;
   const match_pattern =
     String(formData.get("match_pattern") ?? "").trim() || null;
   const sort_order = Number.parseInt(
@@ -99,12 +109,14 @@ export async function updateRegion(formData: FormData): Promise<void> {
   await query(
     `UPDATE regions
         SET label = $1,
-            match_pattern = $2,
-            sort_order = $3,
-            is_active = $4
-      WHERE id = $5::bigint`,
+            short_name = $2,
+            match_pattern = $3,
+            sort_order = $4,
+            is_active = $5
+      WHERE id = $6::bigint`,
     [
       label,
+      short_name,
       match_pattern,
       Number.isFinite(sort_order) ? sort_order : 0,
       is_active,

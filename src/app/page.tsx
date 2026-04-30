@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { resolveCurrentRegion } from "@/lib/regions";
+import { regionShortName, resolveCurrentRegion } from "@/lib/regions";
 import { ButtonLink, Spec } from "./_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +8,7 @@ export default async function Home() {
   const r = await resolveCurrentRegion();
   const region =
     r.kind === "selected" || r.kind === "auto" ? r.region : null;
+  const regionShort = region ? regionShortName(region) : null;
 
   return (
     <div className="page">
@@ -24,20 +25,31 @@ export default async function Home() {
         <div className="hero-grid">
           <div>
             <p className="eyebrow">Peer-to-peer eBike marketplace</p>
-            <h1>
-              Buy & sell <span className="accent">used eBikes</span>
-              {region ? (
-                <>
-                  {" "}in <span className="accent">{region.label}</span>
-                </>
-              ) : null}{" "}
-              with people you can trust.
-            </h1>
-            <p className="sub">
-              Verified sellers. Real specs. Honest condition. ebikeflip is the
-              place to find your next ride — whether you commute, cargo, or
-              cruise.
-            </p>
+            {regionShort ? (
+              <>
+                <h1>
+                  The <span className="accent">{regionShort}</span> eBike
+                  marketplace.
+                </h1>
+                <p className="sub">
+                  Buy &amp; sell with riders nearby. Verified specs, honest
+                  condition, real bikes — no shipping headaches, no out-of-town
+                  surprises.
+                </p>
+              </>
+            ) : (
+              <>
+                <h1>
+                  Buy &amp; sell <span className="accent">used eBikes</span>{" "}
+                  with people you can trust.
+                </h1>
+                <p className="sub">
+                  Verified sellers. Real specs. Honest condition. ebikeflip is
+                  the place to find your next ride — whether you commute,
+                  cargo, or cruise.
+                </p>
+              </>
+            )}
             <div
               style={{
                 display: "flex",
