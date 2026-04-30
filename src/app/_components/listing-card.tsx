@@ -1,22 +1,20 @@
-import Link from "next/link";
-import { Badge, ButtonLink } from "./ui";
+import { ButtonLink, Icon } from "./ui";
 
-export type ListingCardSpec = { k: string; v: string };
+export type ListingCardStat = {
+  icon: "range" | "battery" | "speed" | "weight";
+  value: string;
+  label: string;
+};
 
 export type ListingCardData = {
   id: string;
   title: string;
-  subtitle?: string | null;
+  tagline?: string | null;
   price: string;
-  loc?: string | null;
-  condition?: string | null;
-  badge?: string | null;
-  classBadge?: string | null;
-  categoryBadge?: string | null;
-  sellerInitials?: string;
-  sellerName?: string | null;
+  chips: string[];
+  stats: ListingCardStat[];
+  highlights: string[];
   photo?: string;
-  specs: ListingCardSpec[];
 };
 
 export type ListingCardRow = {
@@ -25,7 +23,6 @@ export type ListingCardRow = {
   price_cents: number;
   seller_email: string | null;
   primary_image_id?: string | null;
-  // detail attributes (all optional)
   make_name: string | null;
   model: string | null;
   year: number | null;
@@ -54,75 +51,117 @@ export type ListingCardRow = {
   has_warranty: boolean | null;
 };
 
-function initials(email?: string | null): string {
-  if (!email) return "??";
-  const local = email.split("@")[0] ?? email;
-  const parts = local.split(/[._-]/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0][0]! + parts[1][0]!).toUpperCase();
-  }
-  return local.slice(0, 2).toUpperCase();
-}
-
 function compactClass(label: string | null): string | null {
   if (!label) return null;
   const m = label.match(/^Class\s+(\d)/i);
   return m ? `Class ${m[1]}` : label;
 }
 
-function fmtNum(n: number | string | null, suffix = ""): string | null {
-  if (n === null || n === undefined || n === "") return null;
-  const num = typeof n === "string" ? Number(n) : n;
-  if (!Number.isFinite(num)) return null;
-  return `${num}${suffix}`;
-}
-
-function fmtRange(
-  min: number | null,
-  max: number | null,
-  suffix: string,
-): string | null {
+function fmtRange(min: number | null, max: number | null): string | null {
   if (min == null && max == null) return null;
-  if (min != null && max != null && min !== max)
-    return `${min}–${max}${suffix}`;
-  return `${min ?? max}${suffix}`;
+  if (min != null && max != null && min !== max) return `${min}–${max} mi`;
+  return `${min ?? max} mi`;
 }
 
-function buildSpecs(row: ListingCardRow): ListingCardSpec[] {
-  const specs: ListingCardSpec[] = [];
-  const motor = [
-    fmtNum(row.motor_watts_nominal, " W"),
-    row.motor_type_label,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  if (motor) specs.push({ k: "Motor", v: motor });
-  if (row.motor_brand_name)
-    specs.push({ k: "Motor brand", v: row.motor_brand_name });
-  const battery = fmtNum(row.battery_wh, " Wh");
-  if (battery) specs.push({ k: "Battery", v: battery });
-  const top = fmtNum(row.top_speed_mph, " mph");
-  if (top) specs.push({ k: "Top speed", v: top });
-  const range = fmtRange(row.range_miles_min, row.range_miles_max, " mi");
-  if (range) specs.push({ k: "Range", v: range });
-  if (row.drive_mode_label) specs.push({ k: "Drive", v: row.drive_mode_label });
-  const mileage = fmtNum(row.mileage, " mi");
-  if (mileage) specs.push({ k: "Mileage", v: mileage });
-  if (row.frame_size) specs.push({ k: "Frame size", v: row.frame_size });
-  if (row.frame_style_label)
-    specs.push({ k: "Frame style", v: row.frame_style_label });
-  if (row.frame_material_label)
-    specs.push({ k: "Material", v: row.frame_material_label });
-  if (row.wheel_size_label) specs.push({ k: "Wheels", v: row.wheel_size_label });
-  if (row.suspension_type_label)
-    specs.push({ k: "Suspension", v: row.suspension_type_label });
-  if (row.brake_type_label) specs.push({ k: "Brakes", v: row.brake_type_label });
-  if (row.gender_fit_label) specs.push({ k: "Fit", v: row.gender_fit_label });
-  if (row.color) specs.push({ k: "Color", v: row.color });
-  const weight = fmtNum(row.weight_lbs, " lb");
-  if (weight) specs.push({ k: "Weight", v: weight });
-  if (row.has_warranty) specs.push({ k: "Warranty", v: "Yes" });
-  return specs;
+function buildChips(row: ListingCardRow): string[] {
+  const chips: string[] = [];
+  const cls = compactClass(row.bike_class_label);
+  if (cls) chips.push(cls);
+  if (row.top_speed_mph != null) chips.push(`${row.top_speed_mph} mph`);
+  if (row.drive_mode_label) chips.push(row.drive_mode_label);
+  else if (row.bike_category_label) chips.push(row.bike_category_label);
+  if (row.condition_label && chips.length < 3) chips.push(row.condition_label);
+  return chips.slice(0, 3);
+}
+
+function buildStats(row: ListingCardRow): ListingCardStat[] {
+  const stats: ListingCardStat[] = [];
+  const range = fmtRange(row.range_miles_min, row.range_miles_max);
+  if (range) stats.push({ icon: "range", value: range, label: "Range" });
+  if (row.battery_wh != null)
+    stats.push({
+      icon: "battery",
+      value: `${row.battery_wh} Wh`,
+      label: "Battery",
+    });
+  if (row.top_speed_mph != null)
+    stats.push({
+      icon: "speed",
+      value: `${row.top_speed_mph} mph`,
+      label: "Top speed",
+    });
+  if (row.weight_lbs) {
+    const n = Number(row.weight_lbs);
+    if (Number.isFinite(n))
+      stats.push({ icon: "weight", value: `${n} lb`, label: "Weight" });
+  }
+  // Fallbacks if we have fewer than 4 of the above
+  if (stats.length < 4 && row.motor_watts_nominal != null) {
+    stats.push({
+      icon: "speed",
+      value: `${row.motor_watts_nominal} W`,
+      label: "Motor",
+    });
+  }
+  if (stats.length < 4 && row.mileage != null) {
+    stats.push({
+      icon: "range",
+      value: `${row.mileage} mi`,
+      label: "Mileage",
+    });
+  }
+  return stats.slice(0, 4);
+}
+
+function buildHighlights(row: ListingCardRow): string[] {
+  const out: string[] = [];
+
+  const brake = row.brake_type_label;
+  if (brake) {
+    if (/disc/i.test(brake)) out.push(`${brake} brakes`);
+    else out.push(`${brake} brakes`);
+  }
+
+  if (row.has_warranty) out.push("Comprehensive warranty included");
+
+  if (
+    row.motor_brand_name &&
+    row.motor_type_label &&
+    !out.some((s) => s.includes("motor"))
+  ) {
+    out.push(`${row.motor_brand_name} ${row.motor_type_label} motor`);
+  }
+
+  if (
+    row.suspension_type_label &&
+    !/none|rigid/i.test(row.suspension_type_label) &&
+    out.length < 3
+  ) {
+    out.push(`${row.suspension_type_label} suspension`);
+  }
+
+  if (row.frame_material_label && out.length < 3) {
+    out.push(`${row.frame_material_label} frame`);
+  }
+
+  if (row.frame_style_label && out.length < 3) {
+    out.push(`${row.frame_style_label} frame design`);
+  }
+
+  if (row.wheel_size_label && out.length < 3) {
+    out.push(`${row.wheel_size_label} wheels`);
+  }
+
+  return out.slice(0, 3);
+}
+
+function buildTagline(row: ListingCardRow): string | null {
+  const parts: string[] = [];
+  if (row.year) parts.push(String(row.year));
+  if (row.make_name) parts.push(row.make_name);
+  if (row.model) parts.push(row.model);
+  if (parts.length === 0) return null;
+  return parts.join(" · ");
 }
 
 export function listingFromRow(row: ListingCardRow): ListingCardData {
@@ -131,31 +170,17 @@ export function listingFromRow(row: ListingCardRow): ListingCardData {
     currency: "USD",
     maximumFractionDigits: 0,
   });
-  const sellerName = row.seller_email
-    ? row.seller_email.split("@")[0] ?? row.seller_email
-    : null;
-
-  const subParts: string[] = [];
-  if (row.year) subParts.push(String(row.year));
-  if (row.make_name) subParts.push(row.make_name);
-  if (row.model) subParts.push(row.model);
-  const subtitle = subParts.length > 0 ? subParts.join(" · ") : null;
-
   return {
     id: row.id,
     title: row.title,
-    subtitle,
+    tagline: buildTagline(row),
     price: priceFmt.format(row.price_cents / 100),
-    sellerInitials: initials(row.seller_email),
-    sellerName,
-    loc: row.location_postal,
-    condition: row.condition_label,
-    classBadge: compactClass(row.bike_class_label),
-    categoryBadge: row.bike_category_label,
+    chips: buildChips(row),
+    stats: buildStats(row),
+    highlights: buildHighlights(row),
     photo: row.primary_image_id
       ? `/api/listings/${row.id}/images/${row.primary_image_id}`
       : undefined,
-    specs: buildSpecs(row),
   };
 }
 
@@ -163,62 +188,61 @@ export function ListingCard({ data }: { data: ListingCardData }) {
   const detailHref = `/listings/${data.id}`;
   return (
     <article className="listing">
-      <div className="img-wrap">
-        {data.photo ? (
-          <div
-            className="photo"
-            style={{ backgroundImage: `url(${data.photo})` }}
-          />
-        ) : (
-          <div className="img">eBike photo</div>
-        )}
-        <div className="img-flag">
-          {data.classBadge && (
-            <Badge variant="volt">{data.classBadge}</Badge>
-          )}
-          {data.categoryBadge && (
-            <Badge variant="ink">{data.categoryBadge}</Badge>
-          )}
-          {data.condition && (
-            <Badge variant="volt-soft">{data.condition}</Badge>
-          )}
-        </div>
-      </div>
-      <div className="body">
-        <div className="meta-row">
-          <div className="seller">
-            {data.sellerInitials && (
-              <span className="avatar">{data.sellerInitials}</span>
-            )}
-            {data.sellerName && <span>{data.sellerName}</span>}
-          </div>
-          {data.loc && <span className="loc">{data.loc}</span>}
-        </div>
-        <Link href={detailHref} className="title-link">
-          <h3 className="title">{data.title}</h3>
-        </Link>
-        {data.subtitle && <p className="subtitle">{data.subtitle}</p>}
-        {data.specs.length > 0 && (
-          <dl className="card-specs">
-            {data.specs.map((s) => (
-              <div key={s.k} className="card-spec">
-                <dt>{s.k}</dt>
-                <dd>{s.v}</dd>
-              </div>
+      <div className="listing-head">
+        {data.chips.length > 0 && (
+          <div className="listing-chips">
+            {data.chips.map((c, i) => (
+              <span key={`${c}-${i}`} className="listing-chip">
+                {c}
+              </span>
             ))}
-          </dl>
+          </div>
         )}
-        <div className="price-row">
-          <div className="price">{data.price}</div>
-          <ButtonLink
-            href={detailHref}
-            variant="dark"
-            size="sm"
-            iconRight="arrow"
-          >
-            View details
-          </ButtonLink>
+        <h3 className="listing-title">{data.title}</h3>
+        {data.tagline && <p className="listing-tagline">{data.tagline}</p>}
+      </div>
+
+      <div className="listing-photo">
+        {data.photo ? (
+          <img src={data.photo} alt={data.title} loading="lazy" />
+        ) : (
+          <span className="listing-photo-empty">eBike photo</span>
+        )}
+      </div>
+
+      {data.stats.length > 0 && (
+        <div className="listing-stats">
+          {data.stats.map((s, i) => (
+            <div key={`${s.label}-${i}`} className="listing-stat">
+              <Icon name={s.icon} size="lg" />
+              <span className="v">{s.value}</span>
+              <span className="k">{s.label}</span>
+            </div>
+          ))}
         </div>
+      )}
+
+      {data.highlights.length > 0 && (
+        <ul className="listing-highlights">
+          {data.highlights.map((h, i) => (
+            <li key={`${h}-${i}`}>
+              <Icon name="check" size="sm" />
+              <span>{h}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="listing-foot">
+        <div className="listing-price">{data.price}</div>
+        <ButtonLink
+          href={detailHref}
+          variant="primary"
+          iconRight="arrow"
+          className="listing-cta"
+        >
+          View Specs &amp; Photos
+        </ButtonLink>
       </div>
     </article>
   );

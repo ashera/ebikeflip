@@ -24,7 +24,8 @@ type IconName =
   | "plus"
   | "arrow"
   | "verified"
-  | "moon";
+  | "moon"
+  | "weight";
 
 const ICON_PATHS: Record<IconName, ReactNode> = {
   search: (
@@ -88,6 +89,12 @@ const ICON_PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   moon: <path d="M21 12.5A9 9 0 1 1 11.5 3a7 7 0 0 0 9.5 9.5z" />,
+  weight: (
+    <>
+      <path d="M5 8h14l-1 12H6L5 8z" />
+      <path d="M9 8a3 3 0 0 1 6 0" />
+    </>
+  ),
 };
 
 export function Icon({
