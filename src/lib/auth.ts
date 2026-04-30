@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 
@@ -11,6 +12,7 @@ const BCRYPT_ROUNDS = 12;
 export type User = {
   id: string;
   email: string;
+  isAdmin: boolean;
 };
 
 export async function hashPassword(plain: string): Promise<string> {
@@ -64,16 +66,29 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!id) return null;
 
   try {
-    const result = await query<{ id: string; email: string }>(
-      `SELECT u.id::text AS id, u.email AS email
+    const result = await query<{
+      id: string;
+      email: string;
+      is_admin: boolean;
+    }>(
+      `SELECT u.id::text AS id, u.email AS email, u.is_admin
          FROM sessions s
          JOIN users u ON u.id = s.user_id
         WHERE s.id = $1 AND s.expires_at > NOW()
         LIMIT 1`,
       [id],
     );
-    return result.rows[0] ?? null;
+    const row = result.rows[0];
+    if (!row) return null;
+    return { id: row.id, email: row.email, isAdmin: row.is_admin };
   } catch {
     return null;
   }
+}
+
+export async function requireAdmin(): Promise<User> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.isAdmin) redirect("/");
+  return user;
 }

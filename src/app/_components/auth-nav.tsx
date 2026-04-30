@@ -57,6 +57,11 @@ export async function AuthNav() {
         <Link href="/listings">Browse</Link>
         <Link href="/listings/new">Sell</Link>
         <Link href="/status">Status</Link>
+        {user?.isAdmin && (
+          <Link href="/admin" className="nav-admin">
+            Admin
+          </Link>
+        )}
       </nav>
 
       <div className="actions">
