@@ -3,6 +3,7 @@ import { logout } from "@/lib/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { Button, ButtonLink } from "./ui";
+import { MobileMenu } from "./mobile-menu";
 
 async function getDbOk(): Promise<boolean> {
   try {
@@ -53,7 +54,7 @@ export async function AuthNav() {
         </div>
       </div>
 
-      <details className="topbar-menu">
+      <MobileMenu>
         <summary className="topbar-toggle" aria-label="Open menu">
           <span className="hamburger" aria-hidden>
             <span />
@@ -101,7 +102,7 @@ export async function AuthNav() {
             )}
           </div>
         </div>
-      </details>
+      </MobileMenu>
     </header>
   );
 }
