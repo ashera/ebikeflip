@@ -1527,6 +1527,173 @@ textarea.input {
 }
 
 /* =========================================================
+   GRID (compact list) VIEW
+   ========================================================= */
+.results-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.listing-row {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1.4fr) minmax(0, 1.4fr) auto;
+  gap: var(--s-4);
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-3);
+  padding: var(--s-3);
+  transition: border-color var(--dur), box-shadow var(--dur);
+}
+.listing-row:hover {
+  border-color: var(--hairline-strong);
+  box-shadow: var(--e-2);
+}
+.listing-row-photo {
+  width: 100px;
+  aspect-ratio: 4 / 3;
+  background: var(--surface-sunken);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.listing-row-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.listing-row-photo-empty {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-4);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.listing-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.listing-row-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.01em;
+  color: var(--ink-1);
+  margin: 0;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.listing-row-tagline {
+  margin: 0;
+  font-size: var(--t-body-s);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.listing-row-tagline.is-empty { color: var(--ink-4); }
+.listing-row-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.listing-row-chips .listing-chip { padding: 2px 8px; font-size: 9px; }
+.listing-row-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px var(--s-3);
+  margin: 0;
+}
+.listing-row-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.listing-row-stat dt {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+.listing-row-stat dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--ink-1);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.listing-row-stat dd.is-empty { color: var(--ink-4); }
+.listing-row-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+.listing-row .listing-price { font-size: 20px; }
+
+@media (max-width: 900px) {
+  .listing-row {
+    grid-template-columns: 80px minmax(0, 1fr) auto;
+  }
+  .listing-row-stats { display: none; }
+  .listing-row-photo { width: 80px; }
+  .listing-row-title { font-size: 16px; }
+}
+@media (max-width: 480px) {
+  .listing-row {
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: var(--s-3);
+  }
+  .listing-row-photo { width: 64px; }
+  .listing-row-foot {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-between;
+    border-top: 1px solid var(--hairline);
+    padding-top: var(--s-3);
+  }
+}
+
+/* =========================================================
+   VIEW TOGGLE
+   ========================================================= */
+.view-toggle {
+  display: inline-flex;
+  background: var(--surface-sunken);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  gap: 2px;
+}
+.view-toggle-btn {
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  font-size: var(--t-body-s);
+  font-weight: 600;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: background var(--dur), color var(--dur);
+}
+.view-toggle-btn:hover { color: var(--ink-1); }
+.view-toggle-btn.is-active {
+  background: var(--ink-1);
+  color: white;
+}
+
+/* =========================================================
    BROWSE FILTERS
    ========================================================= */
 .filters {

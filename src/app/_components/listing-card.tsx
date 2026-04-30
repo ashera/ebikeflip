@@ -165,6 +165,67 @@ export function listingFromRow(row: ListingCardRow): ListingCardData {
   };
 }
 
+export function ListingRow({ data }: { data: ListingCardData }) {
+  const detailHref = `/listings/${data.id}`;
+  const tagline =
+    [data.tagline.year, data.tagline.make, data.tagline.model]
+      .filter((s) => s !== PLACEHOLDER)
+      .join(" · ") || PLACEHOLDER;
+  return (
+    <article className="listing-row">
+      <div className="listing-row-photo">
+        {data.photo ? (
+          <img src={data.photo} alt={data.title} loading="lazy" />
+        ) : (
+          <span className="listing-row-photo-empty" aria-hidden>
+            ebike
+          </span>
+        )}
+      </div>
+
+      <div className="listing-row-info">
+        <h3 className="listing-row-title">{data.title}</h3>
+        <p className={`listing-row-tagline ${tagline === PLACEHOLDER ? "is-empty" : ""}`}>
+          {tagline}
+        </p>
+        <div className="listing-row-chips">
+          {data.chips.map((c, i) => (
+            <span
+              key={i}
+              className={`listing-chip ${c === PLACEHOLDER ? "is-empty" : ""}`}
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <dl className="listing-row-stats">
+        {data.stats.map((s, i) => (
+          <div key={i} className="listing-row-stat">
+            <dt>{s.label}</dt>
+            <dd className={s.value === PLACEHOLDER ? "is-empty" : ""}>
+              {s.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="listing-row-foot">
+        <div className="listing-price">{data.price}</div>
+        <ButtonLink
+          href={detailHref}
+          variant="primary"
+          size="sm"
+          iconRight="arrow"
+        >
+          Details
+        </ButtonLink>
+      </div>
+    </article>
+  );
+}
+
 export function ListingCard({ data }: { data: ListingCardData }) {
   const detailHref = `/listings/${data.id}`;
   return (

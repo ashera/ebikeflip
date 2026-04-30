@@ -4,6 +4,7 @@ import { findRefTable, listActiveRefOptions } from "@/lib/ref-data";
 import { ButtonLink } from "../_components/ui";
 import {
   ListingCard,
+  ListingRow,
   listingFromRow,
   type ListingCardRow,
 } from "../_components/listing-card";
@@ -12,6 +13,7 @@ import {
   activeFilterCount,
   type ActiveFilters,
 } from "../_components/listings-filters";
+import { ViewToggle, type ListingsView } from "../_components/view-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +30,23 @@ type RawSearchParams = {
   max_price?: string | string[];
   min_year?: string | string[];
   max_year?: string | string[];
+  view?: string | string[];
 };
+
+function buildViewHref(view: ListingsView, sp: RawSearchParams): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(sp)) {
+    if (key === "view" || value === undefined) continue;
+    if (Array.isArray(value)) {
+      for (const v of value) if (v) params.append(key, v);
+    } else if (value) {
+      params.set(key, value);
+    }
+  }
+  if (view === "grid") params.set("view", "grid");
+  const qs = params.toString();
+  return qs ? `/listings?${qs}` : "/listings";
+}
 
 function asArray(v: string | string[] | undefined): string[] {
   if (v === undefined) return [];
@@ -234,6 +252,9 @@ export default async function ListingsPage({
   const { active, where, params } = buildFilters(sp);
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
+  const view: ListingsView =
+    (Array.isArray(sp.view) ? sp.view[0] : sp.view) === "grid" ? "grid" : "cards";
+
   const [result, user, options] = await Promise.all([
     fetchListings(whereSql, params),
     getCurrentUser(),
@@ -257,6 +278,7 @@ export default async function ListingsPage({
           )}
         </div>
         <div className="left">
+          <ViewToggle current={view} hrefFor={(v) => buildViewHref(v, sp)} />
           {user ? (
             <ButtonLink
               href="/listings/new"
@@ -306,6 +328,12 @@ export default async function ListingsPage({
               {user ? "Create listing" : "Register"}
             </ButtonLink>
           )}
+        </div>
+      ) : view === "grid" ? (
+        <div className="results-rows">
+          {result.listings.map((row) => (
+            <ListingRow key={row.id} data={listingFromRow(row)} />
+          ))}
         </div>
       ) : (
         <div className="results-grid">
