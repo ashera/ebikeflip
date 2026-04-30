@@ -971,6 +971,34 @@ textarea.input {
   color: var(--ok-500);
 }
 
+.listing-interest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--volt-50);
+  border: 1px solid var(--volt-200);
+  border-radius: var(--r-pill);
+  color: var(--volt-800);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  align-self: flex-start;
+}
+.listing-interest strong { color: var(--volt-800); font-weight: 700; }
+.listing-interest .ico { color: var(--volt-700); }
+
+.listing-row-interest {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--volt-700);
+  background: var(--volt-50);
+  border: 1px solid var(--volt-200);
+  padding: 4px 8px;
+  border-radius: var(--r-pill);
+}
+
 .listing-foot {
   display: flex;
   align-items: center;
@@ -1795,6 +1823,17 @@ textarea.input {
   letter-spacing: 0.08em;
   margin-top: 2px;
 }
+.detail-interest {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  background: var(--volt-50);
+  border: 1px solid var(--volt-200);
+  border-radius: var(--r-3);
+  color: var(--volt-800);
+  font-size: var(--t-body-s);
+}
+.detail-interest strong { color: var(--volt-800); font-weight: 700; }
+.detail-interest a { color: var(--volt-800); text-decoration: underline; }
 .detail-desc {
   margin: 0;
   white-space: pre-wrap;

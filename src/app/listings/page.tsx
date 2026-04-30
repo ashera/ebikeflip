@@ -222,7 +222,11 @@ async function fetchListings(
               l.color,
               l.weight_lbs::text,
               l.has_warranty,
-              l.is_published
+              l.is_published,
+              (
+                SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
+                  WHERE listing_id = l.id
+              ) AS conversation_count
          FROM listings l
          LEFT JOIN users            u    ON u.id    = l.seller_id
          LEFT JOIN bike_makes       mk   ON mk.id   = l.make_id

@@ -22,6 +22,7 @@ type ListingRow = {
   seller_id: string | null;
   is_published: boolean;
   region_id: string | null;
+  conversation_count: string;
   // detail fields
   make_name: string | null;
   model: string | null;
@@ -78,6 +79,10 @@ const LISTING_SELECT = `
   l.seller_id::text,
   l.is_published,
   l.region_id::text,
+  (
+    SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
+      WHERE listing_id = l.id
+  ) AS conversation_count,
   u.email AS seller_email,
   mk.name AS make_name,
   l.model,
@@ -377,6 +382,25 @@ export default async function ListingDetailPage({
               </div>
             </div>
           </div>
+
+          {(() => {
+            const interested = Number(l.conversation_count ?? 0);
+            if (interested === 0) return null;
+            const noun = interested === 1 ? "buyer has" : "buyers have";
+            return (
+              <p className="detail-interest">
+                <strong>{interested}</strong>{" "}
+                {isOwner ? (
+                  <>
+                    {noun} messaged you about this listing.{" "}
+                    <Link href="/messages">Open inbox →</Link>
+                  </>
+                ) : (
+                  <>{noun} asked the seller about this bike.</>
+                )}
+              </p>
+            );
+          })()}
 
           {l.description ? (
             <p className="detail-desc">{l.description}</p>

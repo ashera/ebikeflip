@@ -18,6 +18,7 @@ export type ListingCardData = {
   highlights: [string | null, string | null, string | null];
   photo?: string;
   isHidden?: boolean;
+  interestedCount?: number;
 };
 
 export type ListingCardRow = {
@@ -53,6 +54,7 @@ export type ListingCardRow = {
   weight_lbs: string | null;
   has_warranty: boolean | null;
   is_published?: boolean | null;
+  conversation_count?: string | number | null;
 };
 
 function compactClass(label: string | null): string | null {
@@ -165,6 +167,8 @@ export function listingFromRow(row: ListingCardRow): ListingCardData {
       ? `/api/listings/${row.id}/images/${row.primary_image_id}`
       : undefined,
     isHidden: row.is_published === false,
+    interestedCount:
+      row.conversation_count != null ? Number(row.conversation_count) : 0,
   };
 }
 
@@ -219,6 +223,11 @@ export function ListingRow({ data }: { data: ListingCardData }) {
 
       <div className="listing-row-foot">
         <div className="listing-price">{data.price}</div>
+        {data.interestedCount && data.interestedCount > 0 ? (
+          <span className="listing-row-interest" title={`${data.interestedCount} interested`}>
+            💬 {data.interestedCount}
+          </span>
+        ) : null}
         <ButtonLink
           href={detailHref}
           variant="primary"
@@ -298,6 +307,16 @@ export function ListingCard({ data }: { data: ListingCardData }) {
           </li>
         ))}
       </ul>
+
+      {data.interestedCount && data.interestedCount > 0 ? (
+        <div className="listing-interest">
+          <Icon name="msg" size="sm" />
+          <span>
+            <strong>{data.interestedCount}</strong>{" "}
+            {data.interestedCount === 1 ? "buyer" : "buyers"} interested
+          </span>
+        </div>
+      ) : null}
 
       <div className="listing-foot">
         <div className="listing-price">{data.price}</div>

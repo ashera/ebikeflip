@@ -46,7 +46,11 @@ async function fetchOwnListings(
               l.motor_watts_nominal, l.battery_wh, l.top_speed_mph,
               l.range_miles_min, l.range_miles_max,
               dm.label AS drive_mode_label,
-              l.mileage, l.color, l.weight_lbs::text, l.has_warranty
+              l.mileage, l.color, l.weight_lbs::text, l.has_warranty,
+              (
+                SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
+                  WHERE listing_id = l.id
+              ) AS conversation_count
          FROM listings l
          LEFT JOIN users            u    ON u.id    = l.seller_id
          LEFT JOIN bike_makes       mk   ON mk.id   = l.make_id
