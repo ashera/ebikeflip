@@ -14,18 +14,26 @@ export function MobileMenu({ children }: { children: ReactNode }) {
       if (!el) return;
       const target = e.target as Element | null;
       if (!target) return;
+      // Outside-click closes immediately. Inside clicks are handled in
+      // the click handler below (which fires *after* the browser has a
+      // chance to dispatch form submits and link navigation).
+      if (!el.contains(target)) setOpen(false);
+    }
 
-      // Click outside the menu — close.
-      if (!el.contains(target)) {
-        setOpen(false);
-        return;
+    function onClick(e: MouseEvent) {
+      const el = ref.current;
+      if (!el) return;
+      const target = e.target as Element | null;
+      if (!target || !el.contains(target)) return;
+
+      // Don't close on the hamburger toggle (let the button toggle naturally).
+      if (target.closest(".topbar-toggle")) return;
+      // Close on link/button taps inside the menu — but defer one tick so
+      // the form action / link navigation has already fired before we
+      // unmount the action's DOM.
+      if (target.closest("a, button")) {
+        setTimeout(() => setOpen(false), 0);
       }
-
-      // Click on a link or non-toggle button inside — close after the action.
-      const isToggle = target.closest(".topbar-toggle");
-      if (isToggle) return;
-      const isAction = target.closest("a, button");
-      if (isAction) setOpen(false);
     }
 
     function onKeyDown(e: KeyboardEvent) {
@@ -33,9 +41,11 @@ export function MobileMenu({ children }: { children: ReactNode }) {
     }
 
     document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("click", onClick);
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
