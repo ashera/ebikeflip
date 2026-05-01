@@ -124,15 +124,21 @@ export default async function ConversationPage({
   const isParticipant =
     head.buyer_id === user.id || head.seller_id === user.id;
   const adminViewing = !isParticipant && user.isAdmin;
+  const isDm = head.listing_id === null;
   const otherEmail =
     head.buyer_id === user.id ? head.seller_email : head.buyer_email;
-  // Label describes the OTHER party (not the current user) so it's
-  // unambiguous who's who in the thread header.
+  // Label describes the OTHER party. In DMs, buyer_id is always the admin
+  // (per sendAdminMessage), so the participant on the seller_id side is
+  // the regular user.
   const role = adminViewing
     ? "Viewing as admin"
-    : head.buyer_id === user.id
-      ? "Seller"
-      : "Buyer";
+    : isDm
+      ? head.buyer_id === user.id
+        ? "User"
+        : "Admin"
+      : head.buyer_id === user.id
+        ? "Seller"
+        : "Buyer";
 
   // Only mark as read for participants — an admin lurking shouldn't
   // mask unread messages for the actual buyer/seller.
@@ -140,7 +146,6 @@ export default async function ConversationPage({
     await markConversationRead(id, user.id);
   }
 
-  const isDm = head.listing_id === null;
   const price =
     head.listing_price_cents != null
       ? new Intl.NumberFormat("en-US", {

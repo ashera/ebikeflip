@@ -97,8 +97,13 @@ function ConversationItem({
 }) {
   const unread = Number(c.unread_count);
   const isDm = c.listing_id === null;
+  // In DMs the buyer is always the admin (per sendAdminMessage), so the
+  // OTHER party is the user when current viewer is the admin (=buyer)
+  // and vice versa.
   const otherLabel = isDm
-    ? "Direct"
+    ? c.buyer_id === userId
+      ? "User"
+      : "Admin"
     : c.buyer_id === userId
       ? "Seller"
       : "Buyer";
