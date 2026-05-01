@@ -212,19 +212,26 @@ export async function saveDraftPhotos(formData: FormData): Promise<void> {
   const imageErr = validateImages(files);
   if (imageErr) redirect(`${stepUrl}?error=${imageErr}`);
 
-  // Title is derived from year, make name, and model — no free-text input.
+  // Set the basics first, then derive the title from the row's own
+  // (now-current) columns so the make-name lookup doesn't have to share
+  // a parameter slot with year/make_id/model in two type contexts.
   await query(
     `UPDATE listings
         SET make_id = $2::bigint,
             model = $3,
-            year = $4,
-            title = TRIM(BOTH FROM CONCAT_WS(' ',
-              $4::text,
-              (SELECT name FROM bike_makes WHERE id = $2::bigint),
-              $3
-            ))
+            year = $4::int
       WHERE id = $1::bigint`,
     [listingId, make_id, model, year],
+  );
+  await query(
+    `UPDATE listings
+        SET title = TRIM(BOTH FROM CONCAT_WS(' ',
+              year::text,
+              (SELECT name FROM bike_makes WHERE id = listings.make_id),
+              model
+            ))
+      WHERE id = $1::bigint`,
+    [listingId],
   );
 
   if (files.length > 0) {

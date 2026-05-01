@@ -262,14 +262,10 @@ function parseListingFields(formData: FormData): ParseResult {
   };
 }
 
-// Title is auto-derived from year + make name + model on every update so
-// it never drifts if any of the three change.
+// Title is auto-derived from year + make name + model in a follow-up
+// query so we don't have to share a parameter slot across multiple type
+// contexts inside this UPDATE.
 const UPDATE_SET = `
-  title = TRIM(BOTH FROM CONCAT_WS(' ',
-    $6::text,
-    (SELECT name FROM bike_makes WHERE id = $4::bigint),
-    $5
-  )),
   description = $2,
   price_cents = $3,
   make_id = $4::bigint,
@@ -509,6 +505,17 @@ export async function updateListing(formData: FormData): Promise<void> {
       user.id,
       user.isAdmin,
     ],
+  );
+
+  await query(
+    `UPDATE listings
+        SET title = TRIM(BOTH FROM CONCAT_WS(' ',
+              year::text,
+              (SELECT name FROM bike_makes WHERE id = listings.make_id),
+              model
+            ))
+      WHERE id = $1::bigint`,
+    [listingId],
   );
 
   revalidatePath(`/listings/${listingId}`);
