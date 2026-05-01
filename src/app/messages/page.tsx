@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 type ConversationRow = {
   id: string;
-  listing_id: string;
-  listing_title: string;
+  listing_id: string | null;
+  listing_title: string | null;
   buyer_id: string;
   seller_id: string;
   other_email: string | null;
@@ -55,7 +55,7 @@ async function fetchConversations(userId: string) {
                   LIMIT 1
               ) AS primary_image_id
          FROM conversations c
-         JOIN listings l ON l.id = c.listing_id
+         LEFT JOIN listings l ON l.id = c.listing_id
          LEFT JOIN users bu ON bu.id = c.buyer_id
          LEFT JOIN users sl ON sl.id = c.seller_id
         WHERE c.buyer_id::text = $1 OR c.seller_id::text = $1
@@ -96,7 +96,12 @@ function ConversationItem({
   userId: string;
 }) {
   const unread = Number(c.unread_count);
-  const otherLabel = c.buyer_id === userId ? "Seller" : "Buyer";
+  const isDm = c.listing_id === null;
+  const otherLabel = isDm
+    ? "Direct"
+    : c.buyer_id === userId
+      ? "Seller"
+      : "Buyer";
   return (
     <li>
       <Link
@@ -104,26 +109,34 @@ function ConversationItem({
         className={`conversation-item ${unread > 0 ? "is-unread" : ""}`}
       >
         <div className="conversation-thumb">
-          {c.primary_image_id ? (
+          {c.primary_image_id && c.listing_id ? (
             <img
               src={`/api/listings/${c.listing_id}/images/${c.primary_image_id}`}
               alt=""
             />
           ) : (
-            <span aria-hidden>🚲</span>
+            <span aria-hidden>{isDm ? "✉️" : "🚲"}</span>
           )}
         </div>
         <div className="conversation-body">
           <div className="conversation-top">
-            <span className="conversation-listing">{c.listing_title}</span>
+            <span className="conversation-listing">
+              {isDm
+                ? `Direct message · ${shortName(c.other_email)}`
+                : c.listing_title}
+            </span>
             <span className="conversation-time">
               {formatRelative(c.last_at)}
             </span>
           </div>
           <div className="conversation-meta">
             <span className="conversation-role">{otherLabel}</span>
-            <span> · </span>
-            <span>{shortName(c.other_email)}</span>
+            {!isDm && (
+              <>
+                <span> · </span>
+                <span>{shortName(c.other_email)}</span>
+              </>
+            )}
           </div>
           <div className="conversation-preview">
             {c.last_body ? (
@@ -174,16 +187,18 @@ export default async function MessagesIndexPage() {
     );
   }
 
-  const sellingRows = result.rows.filter((c) => c.seller_id === user.id);
-  const buyingRows = result.rows.filter((c) => c.buyer_id === user.id);
-  const sellingUnread = sellingRows.reduce(
-    (n, c) => n + Number(c.unread_count),
-    0,
+  const dmRows = result.rows.filter((c) => c.listing_id === null);
+  const sellingRows = result.rows.filter(
+    (c) => c.listing_id !== null && c.seller_id === user.id,
   );
-  const buyingUnread = buyingRows.reduce(
-    (n, c) => n + Number(c.unread_count),
-    0,
+  const buyingRows = result.rows.filter(
+    (c) => c.listing_id !== null && c.buyer_id === user.id,
   );
+  const sumUnread = (rows: ConversationRow[]) =>
+    rows.reduce((n, c) => n + Number(c.unread_count), 0);
+  const sellingUnread = sumUnread(sellingRows);
+  const buyingUnread = sumUnread(buyingRows);
+  const dmUnread = sumUnread(dmRows);
 
   return (
     <div className="page page--pad">
@@ -212,6 +227,27 @@ export default async function MessagesIndexPage() {
         </div>
       ) : (
         <>
+          {dmRows.length > 0 && (
+            <section className="inbox-section">
+              <div className="inbox-section-head">
+                <h2>Direct messages</h2>
+                <span className="inbox-section-count">
+                  {dmRows.length}
+                  {dmUnread > 0 && (
+                    <span className="inbox-section-unread">
+                      · {dmUnread} unread
+                    </span>
+                  )}
+                </span>
+              </div>
+              <ul className="conversation-list">
+                {dmRows.map((c) => (
+                  <ConversationItem key={c.id} c={c} userId={user.id} />
+                ))}
+              </ul>
+            </section>
+          )}
+
           <section className="inbox-section">
             <div className="inbox-section-head">
               <h2>Buyers asking about your listings</h2>

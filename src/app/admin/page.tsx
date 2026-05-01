@@ -14,6 +14,11 @@ const ADMIN_LINKS: Array<{ href: string; title: string; desc: string }> = [
     title: "Manage Regions",
     desc: "Configure which geographical regions the site is available in.",
   },
+  {
+    href: "/admin/users",
+    title: "Manage Users",
+    desc: "View accounts, edit profiles, suspend, and DM users directly.",
+  },
 ];
 
 export default async function AdminHomePage() {

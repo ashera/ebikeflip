@@ -94,7 +94,9 @@ export async function getCurrentUser(): Promise<User | null> {
               u.postcode
          FROM sessions s
          JOIN users u ON u.id = s.user_id
-        WHERE s.id = $1 AND s.expires_at > NOW()
+        WHERE s.id = $1
+          AND s.expires_at > NOW()
+          AND u.suspended_at IS NULL
         LIMIT 1`,
       [id],
     );

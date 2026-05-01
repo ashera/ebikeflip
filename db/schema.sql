@@ -10,13 +10,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS is_admin   BOOLEAN NOT NULL DEFAULT FALSE,
-  ADD COLUMN IF NOT EXISTS location   TEXT,
-  ADD COLUMN IF NOT EXISTS title      TEXT,
-  ADD COLUMN IF NOT EXISTS first_name TEXT,
-  ADD COLUMN IF NOT EXISTS surname    TEXT,
-  ADD COLUMN IF NOT EXISTS town       TEXT,
-  ADD COLUMN IF NOT EXISTS postcode   TEXT;
+  ADD COLUMN IF NOT EXISTS is_admin     BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS location     TEXT,
+  ADD COLUMN IF NOT EXISTS title        TEXT,
+  ADD COLUMN IF NOT EXISTS first_name   TEXT,
+  ADD COLUMN IF NOT EXISTS surname      TEXT,
+  ADD COLUMN IF NOT EXISTS town         TEXT,
+  ADD COLUMN IF NOT EXISTS postcode     TEXT,
+  ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS sessions (
   id          TEXT         PRIMARY KEY,
@@ -372,9 +373,18 @@ CREATE TABLE IF NOT EXISTS conversations (
   updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
+-- Allow admin DMs (no listing) by lifting the NOT NULL on listing_id.
+ALTER TABLE conversations ALTER COLUMN listing_id DROP NOT NULL;
+
 -- Each (listing, buyer) pair gets at most one conversation.
 CREATE UNIQUE INDEX IF NOT EXISTS conversations_listing_buyer_idx
   ON conversations (listing_id, buyer_id);
+
+-- One direct-message thread per (admin-as-buyer, target user) pair when
+-- listing_id IS NULL. Partial index so the listing-scoped index above
+-- still applies to listing-tied conversations.
+CREATE UNIQUE INDEX IF NOT EXISTS conversations_dm_idx
+  ON conversations (buyer_id, seller_id) WHERE listing_id IS NULL;
 
 CREATE INDEX IF NOT EXISTS conversations_buyer_idx
   ON conversations (buyer_id, updated_at DESC);

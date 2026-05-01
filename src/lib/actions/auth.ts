@@ -132,8 +132,12 @@ export async function login(formData: FormData): Promise<void> {
     redirect(`/login?error=invalid-credentials`);
   }
 
-  const result = await query<{ id: string; password_hash: string }>(
-    "SELECT id::text, password_hash FROM users WHERE email = $1 LIMIT 1",
+  const result = await query<{
+    id: string;
+    password_hash: string;
+    suspended_at: string | null;
+  }>(
+    "SELECT id::text, password_hash, suspended_at::text FROM users WHERE email = $1 LIMIT 1",
     [email],
   );
   const user = result.rows[0];
@@ -144,6 +148,9 @@ export async function login(formData: FormData): Promise<void> {
   const ok = await verifyPassword(password, user.password_hash);
   if (!ok) {
     redirect("/login?error=invalid-credentials");
+  }
+  if (user.suspended_at) {
+    redirect("/login?error=suspended");
   }
 
   await createSession(user.id);

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const ERRORS: Record<string, string> = {
   "invalid-credentials": "Incorrect email or password.",
+  suspended: "This account is suspended. Contact support if you think this is a mistake.",
 };
 
 export default async function LoginPage({

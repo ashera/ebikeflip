@@ -1429,6 +1429,79 @@ textarea.input {
 }
 .admin-tile:hover .admin-tile-arrow { color: var(--volt-700); }
 
+/* admin users table */
+.users-table {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+.users-row {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 70px 70px 100px 100px;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--hairline);
+  font-size: var(--t-body-s);
+  align-items: center;
+}
+.users-row:last-child { border-bottom: 0; }
+.users-head {
+  background: var(--surface-sunken);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-4);
+}
+.users-item {
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--dur);
+}
+.users-item:hover { background: var(--surface-sunken); }
+.users-item.is-suspended { opacity: 0.7; }
+.users-email {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.users-loc, .users-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.users-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.users-tag.--admin { background: var(--volt-100); color: var(--volt-800); }
+.users-tag.--ok { background: var(--ok-100); color: oklch(38% 0.12 150); }
+.users-tag.--susp { background: var(--danger-100); color: oklch(38% 0.13 25); }
+@media (max-width: 760px) {
+  .users-row { grid-template-columns: 1fr; gap: 4px; }
+  .users-head { display: none; }
+  .users-item { padding: var(--s-3); }
+}
+
+.account-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+}
+
 /* ref-data add-row form */
 .ref-add {
   display: grid;

@@ -11,9 +11,9 @@ export const dynamic = "force-dynamic";
 
 type ConversationHead = {
   id: string;
-  listing_id: string;
-  listing_title: string;
-  listing_price_cents: number;
+  listing_id: string | null;
+  listing_title: string | null;
+  listing_price_cents: number | null;
   buyer_id: string;
   seller_id: string;
   buyer_email: string | null;
@@ -54,7 +54,7 @@ async function fetchConversation(
                 LIMIT 1
             ) AS primary_image_id
        FROM conversations c
-       JOIN listings l ON l.id = c.listing_id
+       LEFT JOIN listings l ON l.id = c.listing_id
        LEFT JOIN users bu ON bu.id = c.buyer_id
        LEFT JOIN users sl ON sl.id = c.seller_id
       WHERE c.id = $1::bigint
@@ -140,11 +140,15 @@ export default async function ConversationPage({
     await markConversationRead(id, user.id);
   }
 
-  const price = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(head.listing_price_cents / 100);
+  const isDm = head.listing_id === null;
+  const price =
+    head.listing_price_cents != null
+      ? new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(head.listing_price_cents / 100)
+      : null;
 
   return (
     <div className="page page--pad">
@@ -155,22 +159,37 @@ export default async function ConversationPage({
       </Link>
 
       <div className="thread-head">
-        <Link href={`/listings/${head.listing_id}`} className="thread-listing">
-          <div className="thread-thumb">
-            {head.primary_image_id ? (
-              <img
-                src={`/api/listings/${head.listing_id}/images/${head.primary_image_id}`}
-                alt=""
-              />
-            ) : (
-              <span aria-hidden>🚲</span>
-            )}
+        {isDm ? (
+          <div className="thread-listing">
+            <div className="thread-thumb">
+              <span aria-hidden>✉️</span>
+            </div>
+            <div>
+              <div className="thread-listing-title">Direct message</div>
+              <div className="thread-listing-price">No listing attached</div>
+            </div>
           </div>
-          <div>
-            <div className="thread-listing-title">{head.listing_title}</div>
-            <div className="thread-listing-price">{price}</div>
-          </div>
-        </Link>
+        ) : (
+          <Link
+            href={`/listings/${head.listing_id}`}
+            className="thread-listing"
+          >
+            <div className="thread-thumb">
+              {head.primary_image_id ? (
+                <img
+                  src={`/api/listings/${head.listing_id}/images/${head.primary_image_id}`}
+                  alt=""
+                />
+              ) : (
+                <span aria-hidden>🚲</span>
+              )}
+            </div>
+            <div>
+              <div className="thread-listing-title">{head.listing_title}</div>
+              <div className="thread-listing-price">{price}</div>
+            </div>
+          </Link>
+        )}
         <div className="thread-other">
           <span className="thread-role">{role}</span>
           <span className="thread-other-name">
