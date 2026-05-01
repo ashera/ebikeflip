@@ -149,6 +149,9 @@ export async function AuthNav() {
 
             {user ? (
               <>
+                <ButtonLink href="/support" variant="ghost" size="sm">
+                  Help
+                </ButtonLink>
                 <AvatarMenu email={user.email}>
                   <Link href="/listings/mine">My listings</Link>
                   <Link href="/profile">Profile</Link>
@@ -156,9 +159,6 @@ export async function AuthNav() {
                     <button type="submit">Log out</button>
                   </form>
                 </AvatarMenu>
-                <ButtonLink href="/support" variant="ghost" size="sm">
-                  Help
-                </ButtonLink>
               </>
             ) : (
               <>
