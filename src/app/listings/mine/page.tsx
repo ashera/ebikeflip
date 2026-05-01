@@ -47,6 +47,7 @@ async function fetchOwnListings(
               l.range_miles_min, l.range_miles_max,
               dm.label AS drive_mode_label,
               l.mileage, l.color, l.weight_lbs::text, l.has_warranty,
+              l.sold_at::text,
               (
                 SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
                   WHERE listing_id = l.id

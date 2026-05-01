@@ -457,6 +457,35 @@ export async function createListing(formData: FormData): Promise<void> {
   redirect(`/listings/${listingId}`);
 }
 
+export async function toggleListingSold(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const listingId = String(formData.get("listingId") ?? "");
+  if (!(await canEditListing(listingId, user))) {
+    redirect("/listings");
+  }
+
+  await query(
+    `UPDATE listings
+        SET sold_at = CASE
+          WHEN sold_at IS NULL THEN NOW()
+          ELSE NULL
+        END
+      WHERE id = $1::bigint
+        AND (seller_id = $2::bigint OR $3::boolean)`,
+    [listingId, user.id, user.isAdmin],
+  );
+
+  revalidatePath(`/listings/${listingId}`);
+  revalidatePath(`/listings/${listingId}/edit`);
+  revalidatePath(`/listings`);
+  revalidatePath(`/listings/mine`);
+
+  const next = String(formData.get("next") ?? `/listings/${listingId}`);
+  redirect(next);
+}
+
 export async function setListingVisibility(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

@@ -225,6 +225,7 @@ async function fetchListings(
               l.weight_lbs::text,
               l.has_warranty,
               l.is_published,
+              l.sold_at::text,
               (
                 SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
                   WHERE listing_id = l.id

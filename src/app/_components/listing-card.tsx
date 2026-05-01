@@ -20,6 +20,7 @@ export type ListingCardData = {
   photo?: string;
   isHidden?: boolean;
   isOwn?: boolean;
+  isSold?: boolean;
   isShortlisted?: boolean;
   showShortlist?: boolean;
   interestedCount?: number;
@@ -59,6 +60,7 @@ export type ListingCardRow = {
   weight_lbs: string | null;
   has_warranty: boolean | null;
   is_published?: boolean | null;
+  sold_at?: string | null;
   conversation_count?: string | number | null;
 };
 
@@ -187,6 +189,7 @@ export function listingFromRow(
       : undefined,
     isHidden: row.is_published === false,
     isOwn,
+    isSold: !!row.sold_at,
     isShortlisted,
     showShortlist,
     interestedCount:
@@ -229,7 +232,7 @@ export function ListingRow({ data }: { data: ListingCardData }) {
       .join(" · ") || PLACEHOLDER;
   return (
     <article
-      className={`listing-row ${data.isHidden ? "is-hidden" : ""} ${data.isOwn ? "is-own" : ""}`}
+      className={`listing-row ${data.isHidden ? "is-hidden" : ""} ${data.isOwn ? "is-own" : ""} ${data.isSold ? "is-sold" : ""}`}
     >
       <div className="listing-row-photo">
         {data.photo ? (
@@ -247,7 +250,10 @@ export function ListingRow({ data }: { data: ListingCardData }) {
         {data.isHidden && (
           <span className="listing-row-hidden-flag">Hidden</span>
         )}
-        {data.showShortlist && (
+        {data.isSold && (
+          <span className="listing-row-sold-overlay">Sold</span>
+        )}
+        {data.showShortlist && !data.isSold && (
           <ShortlistButton
             listingId={data.id}
             isShortlisted={!!data.isShortlisted}
@@ -347,7 +353,8 @@ export function ListingCard({ data }: { data: ListingCardData }) {
           </span>
         )}
         {data.isHidden && <span className="listing-hidden-flag">Hidden</span>}
-        {data.showShortlist && (
+        {data.isSold && <span className="listing-sold-overlay">Sold</span>}
+        {data.showShortlist && !data.isSold && (
           <ShortlistButton
             listingId={data.id}
             isShortlisted={!!data.isShortlisted}

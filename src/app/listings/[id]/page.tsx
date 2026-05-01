@@ -4,6 +4,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentRegionId } from "@/lib/regions";
 import { startConversation } from "@/lib/actions/messages";
+import { toggleListingSold } from "@/lib/actions/listings";
 import { toggleShortlist } from "@/lib/actions/shortlist";
 import { getShortlistIds } from "@/lib/shortlist";
 import { Button, ButtonLink, Icon } from "../../_components/ui";
@@ -24,6 +25,7 @@ type ListingRow = {
   seller_id: string | null;
   is_published: boolean;
   offers_enabled: boolean;
+  sold_at: string | null;
   region_id: string | null;
   conversation_count: string;
   // detail fields
@@ -82,6 +84,7 @@ const LISTING_SELECT = `
   l.seller_id::text,
   l.is_published,
   l.offers_enabled,
+  l.sold_at::text,
   l.region_id::text,
   (
     SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
@@ -431,6 +434,24 @@ export default async function ListingDetailPage({
         ← Back to browse
       </Link>
 
+      {l.sold_at && (
+        <div className="sold-banner">
+          <strong>Sold.</strong>
+          <span>
+            This listing is no longer available
+            {isOwner ? " — you marked it sold." : "."}
+          </span>
+          {(isOwner || isAdmin) && (
+            <form action={toggleListingSold}>
+              <input type="hidden" name="listingId" value={l.id} />
+              <Button type="submit" variant="ghost" size="sm">
+                Mark available
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
+
       {!l.is_published && (isOwner || isAdmin) && (
         <div className="hidden-banner">
           <strong>Hidden from browse.</strong>
@@ -498,7 +519,7 @@ export default async function ListingDetailPage({
           )}
 
           <div className="detail-actions">
-            {!isOwner && l.seller_id && currentUser ? (
+            {!l.sold_at && !isOwner && l.seller_id && currentUser ? (
               <form action={startConversation}>
                 <input type="hidden" name="listingId" value={l.id} />
                 <Button
@@ -510,7 +531,7 @@ export default async function ListingDetailPage({
                   Contact seller
                 </Button>
               </form>
-            ) : !isOwner && l.seller_id ? (
+            ) : !l.sold_at && !isOwner && l.seller_id ? (
               <ButtonLink
                 href={`/login?next=${encodeURIComponent(`/listings/${l.id}`)}`}
                 variant="primary"
@@ -520,7 +541,7 @@ export default async function ListingDetailPage({
                 Log in to contact seller
               </ButtonLink>
             ) : null}
-            {!isOwner && l.seller_id && l.offers_enabled && (
+            {!l.sold_at && !isOwner && l.seller_id && l.offers_enabled && (
               <ButtonLink
                 href={
                   currentUser
@@ -532,6 +553,14 @@ export default async function ListingDetailPage({
               >
                 Make an offer
               </ButtonLink>
+            )}
+            {!l.sold_at && (isOwner || isAdmin) && (
+              <form action={toggleListingSold}>
+                <input type="hidden" name="listingId" value={l.id} />
+                <Button type="submit" variant="dark" size="lg">
+                  Mark as sold
+                </Button>
+              </form>
             )}
             {!isOwner && currentUser && (
               <form action={toggleShortlist}>

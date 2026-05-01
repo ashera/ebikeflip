@@ -62,6 +62,7 @@ async function fetchShortlistedListings(userId: string) {
               l.weight_lbs::text,
               l.has_warranty,
               l.is_published,
+              l.sold_at::text,
               s.created_at::text AS shortlisted_at,
               s.ignored_at::text AS ignored_at
          FROM shortlists s
