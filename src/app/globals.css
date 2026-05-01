@@ -1341,6 +1341,15 @@ textarea.input {
 }
 .sold-banner strong { color: white; font-size: 18px; letter-spacing: 0.04em; }
 .sold-banner > span { flex: 1 1 auto; min-width: 0; opacity: 0.9; }
+.sold-banner .btn.--ghost {
+  color: white;
+  border-color: oklch(100% 0 0 / 0.3);
+  background: transparent;
+}
+.sold-banner .btn.--ghost:hover {
+  background: oklch(100% 0 0 / 0.1);
+  border-color: oklch(100% 0 0 / 0.5);
+}
 
 /* Sold overlay on cards */
 .listing-sold-overlay,
