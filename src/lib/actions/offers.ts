@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyMessageRecipient } from "@/lib/notifications";
 
 const NOTE_MAX = 500;
 const PRICE_MAX_DOLLARS = 1_000_000;
@@ -102,6 +103,8 @@ export async function makeOffer(formData: FormData): Promise<void> {
     `UPDATE conversations SET updated_at = NOW() WHERE id = $1::bigint`,
     [conversationId],
   );
+
+  await notifyMessageRecipient(conversationId, user.id, body);
 
   revalidatePath(`/listings/${listingId}`);
   revalidatePath("/messages");

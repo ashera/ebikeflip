@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { query, withTransaction } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyTicketReply } from "@/lib/notifications";
 
 const SUBJECT_MAX = 200;
 const BODY_MAX = 4000;
@@ -49,6 +50,9 @@ export async function createTicket(formData: FormData): Promise<void> {
     return id;
   });
 
+  // Page admins on new tickets so they can triage.
+  await notifyTicketReply(ticketId, user.id, body, false);
+
   revalidatePath("/support");
   revalidatePath("/admin/tickets");
   redirect(`/support/${ticketId}`);
@@ -85,6 +89,8 @@ export async function sendTicketMessage(formData: FormData): Promise<void> {
       [ticketId],
     );
   });
+
+  await notifyTicketReply(ticketId, user.id, body, user.isAdmin);
 
   revalidatePath(`/support/${ticketId}`);
   revalidatePath("/support");

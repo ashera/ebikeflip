@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { query, withTransaction } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
+import { notifyMessageRecipient } from "@/lib/notifications";
 
 const MESSAGE_MAX = 4000;
 
@@ -90,6 +91,9 @@ export async function sendMessage(formData: FormData): Promise<void> {
       [conversationId],
     );
   });
+
+  // Fire-and-forget — notify the other party. Failures are logged inside.
+  await notifyMessageRecipient(conversationId, user.id, body);
 
   revalidatePath(`/messages/${conversationId}`);
   revalidatePath(`/messages`);

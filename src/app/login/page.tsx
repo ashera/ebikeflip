@@ -14,13 +14,13 @@ const ERRORS: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
   if (await getCurrentUser()) {
     redirect("/");
   }
 
-  const { error } = await searchParams;
+  const { error, reset } = await searchParams;
   const errorMessage = error ? ERRORS[error] ?? "Something went wrong." : null;
 
   return (
@@ -35,6 +35,12 @@ export default async function LoginPage({
               Need an account? <Link href="/register">Register</Link>.
             </p>
           </div>
+
+          {reset && (
+            <p className="form-success">
+              Password updated. You can log in with your new password now.
+            </p>
+          )}
 
           <form
             action={login}
@@ -65,6 +71,13 @@ export default async function LoginPage({
             <Button type="submit" variant="primary" size="lg" block iconRight="arrow">
               Log in
             </Button>
+
+            <p
+              className="sub"
+              style={{ marginTop: 0, textAlign: "center", fontSize: 13 }}
+            >
+              <Link href="/forgot">Forgot password?</Link>
+            </p>
           </form>
         </div>
       </main>

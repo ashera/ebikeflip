@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { query } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
+import { notifyMessageRecipient } from "@/lib/notifications";
 
 const TITLES = new Set(["Mr", "Mrs", "Ms", "Mx", "Dr", "Prof"]);
 
@@ -139,6 +140,8 @@ export async function sendAdminMessage(formData: FormData): Promise<void> {
     `UPDATE conversations SET updated_at = NOW() WHERE id = $1::bigint`,
     [conversationId],
   );
+
+  await notifyMessageRecipient(conversationId, me.id, body);
 
   revalidatePath("/messages");
   revalidatePath(`/messages/${conversationId}`);
