@@ -9,7 +9,12 @@ import type { ComponentProps } from "react";
 
 type IconName = ComponentProps<typeof Icon>["name"];
 
-export type WizardStep = "photos" | "build" | "condition" | "publish";
+export type WizardStep =
+  | "photos"
+  | "frame"
+  | "motor"
+  | "condition"
+  | "publish";
 
 export type DraftRow = {
   id: string;
@@ -56,9 +61,10 @@ export type DraftRow = {
 
 const STEPS: { key: WizardStep; label: string; n: number }[] = [
   { key: "photos", label: "Photos & basics", n: 1 },
-  { key: "build", label: "Build", n: 2 },
-  { key: "condition", label: "Condition", n: 3 },
-  { key: "publish", label: "Publish", n: 4 },
+  { key: "frame", label: "Frame", n: 2 },
+  { key: "motor", label: "Motor & battery", n: 3 },
+  { key: "condition", label: "Condition", n: 4 },
+  { key: "publish", label: "Publish", n: 5 },
 ];
 
 export async function loadDraft(

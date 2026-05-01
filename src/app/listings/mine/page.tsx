@@ -27,8 +27,8 @@ type DraftItem = {
 
 function nextStepFor(d: DraftItem): string {
   if (!d.has_basics) return `/listings/new/${d.id}/photos`;
-  if (!d.has_class) return `/listings/new/${d.id}/build`;
-  if (!d.has_condition) return `/listings/new/${d.id}/condition`;
+  if (!d.has_class) return `/listings/new/${d.id}/frame`;
+  if (!d.has_condition) return `/listings/new/${d.id}/motor`;
   return `/listings/new/${d.id}/publish`;
 }
 
@@ -207,12 +207,12 @@ export default async function MyListingsPage() {
                   </div>
                   <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
                     {!d.has_basics
-                      ? "Step 1 of 4 — photos & basics"
+                      ? "Step 1 of 5 — photos & basics"
                       : !d.has_class
-                      ? "Step 2 of 4 — build"
+                      ? "Step 2 of 5 — frame"
                       : !d.has_condition
-                      ? "Step 3 of 4 — condition"
-                      : "Step 4 of 4 — publish"}
+                      ? "Step 3 of 5 — motor & battery"
+                      : "Step 5 of 5 — publish"}
                   </div>
                 </div>
                 <Link

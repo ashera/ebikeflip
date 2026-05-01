@@ -243,10 +243,10 @@ export async function saveDraftPhotos(formData: FormData): Promise<void> {
   }
 
   revalidatePath(stepUrl);
-  redirect(`/listings/new/${listingId}/build`);
+  redirect(`/listings/new/${listingId}/frame`);
 }
 
-export async function saveDraftBuild(formData: FormData): Promise<void> {
+export async function saveDraftFrame(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
@@ -255,12 +255,55 @@ export async function saveDraftBuild(formData: FormData): Promise<void> {
     redirect("/listings/mine");
   }
 
-  const stepUrl = `/listings/new/${listingId}/build`;
+  const stepUrl = `/listings/new/${listingId}/frame`;
 
   const bike_class_id = getRequiredId(formData, "bike_class_id");
   if (!bike_class_id) redirect(`${stepUrl}?error=invalid-class`);
   const bike_category_id = getRequiredId(formData, "bike_category_id");
   if (!bike_category_id) redirect(`${stepUrl}?error=invalid-category`);
+
+  await query(
+    `UPDATE listings
+        SET bike_class_id = $2::bigint,
+            bike_category_id = $3::bigint,
+            frame_size = $4,
+            frame_style_id = NULLIF($5, '')::bigint,
+            frame_material_id = NULLIF($6, '')::bigint,
+            gender_fit_id = NULLIF($7, '')::bigint,
+            wheel_size_id = NULLIF($8, '')::bigint,
+            suspension_type_id = NULLIF($9, '')::bigint,
+            brake_type_id = NULLIF($10, '')::bigint,
+            color = $11
+      WHERE id = $1::bigint`,
+    [
+      listingId,
+      bike_class_id,
+      bike_category_id,
+      nullableString(getString(formData, "frame_size", 32)),
+      getOptionalId(formData, "frame_style_id") ?? "",
+      getOptionalId(formData, "frame_material_id") ?? "",
+      getOptionalId(formData, "gender_fit_id") ?? "",
+      getOptionalId(formData, "wheel_size_id") ?? "",
+      getOptionalId(formData, "suspension_type_id") ?? "",
+      getOptionalId(formData, "brake_type_id") ?? "",
+      nullableString(getString(formData, "color", 32)),
+    ],
+  );
+
+  revalidatePath(stepUrl);
+  redirect(`/listings/new/${listingId}/motor`);
+}
+
+export async function saveDraftMotor(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const listingId = String(formData.get("listingId") ?? "");
+  if (!(await ensureDraftOwnership(listingId, user))) {
+    redirect("/listings/mine");
+  }
+
+  const stepUrl = `/listings/new/${listingId}/motor`;
 
   const intRanges: Record<string, [number, number]> = {
     motor_watts_nominal: [50, 3000],
@@ -281,38 +324,19 @@ export async function saveDraftBuild(formData: FormData): Promise<void> {
 
   await query(
     `UPDATE listings
-        SET bike_class_id = $2::bigint,
-            bike_category_id = $3::bigint,
-            frame_size = $4,
-            frame_style_id = NULLIF($5, '')::bigint,
-            frame_material_id = NULLIF($6, '')::bigint,
-            gender_fit_id = NULLIF($7, '')::bigint,
-            wheel_size_id = NULLIF($8, '')::bigint,
-            suspension_type_id = NULLIF($9, '')::bigint,
-            brake_type_id = NULLIF($10, '')::bigint,
-            motor_brand_id = NULLIF($11, '')::bigint,
-            motor_type_id = NULLIF($12, '')::bigint,
-            motor_watts_nominal = $13,
-            battery_wh = $14,
-            top_speed_mph = $15,
-            range_miles_min = $16,
-            range_miles_max = $17,
-            drive_mode_id = NULLIF($18, '')::bigint,
-            mileage = $19,
-            color = $20,
-            weight_lbs = $21
+        SET motor_brand_id = NULLIF($2, '')::bigint,
+            motor_type_id = NULLIF($3, '')::bigint,
+            motor_watts_nominal = $4,
+            battery_wh = $5,
+            top_speed_mph = $6,
+            range_miles_min = $7,
+            range_miles_max = $8,
+            drive_mode_id = NULLIF($9, '')::bigint,
+            mileage = $10,
+            weight_lbs = $11
       WHERE id = $1::bigint`,
     [
       listingId,
-      bike_class_id,
-      bike_category_id,
-      nullableString(getString(formData, "frame_size", 32)),
-      getOptionalId(formData, "frame_style_id") ?? "",
-      getOptionalId(formData, "frame_material_id") ?? "",
-      getOptionalId(formData, "gender_fit_id") ?? "",
-      getOptionalId(formData, "wheel_size_id") ?? "",
-      getOptionalId(formData, "suspension_type_id") ?? "",
-      getOptionalId(formData, "brake_type_id") ?? "",
       getOptionalId(formData, "motor_brand_id") ?? "",
       getOptionalId(formData, "motor_type_id") ?? "",
       ints.motor_watts_nominal,
@@ -322,7 +346,6 @@ export async function saveDraftBuild(formData: FormData): Promise<void> {
       ints.range_miles_max,
       getOptionalId(formData, "drive_mode_id") ?? "",
       ints.mileage,
-      nullableString(getString(formData, "color", 32)),
       weight,
     ],
   );
@@ -419,7 +442,7 @@ export async function publishDraftListing(formData: FormData): Promise<void> {
     redirect(`/listings/new/${listingId}/photos?error=incomplete`);
   }
   if (!row.bike_class_id || !row.bike_category_id) {
-    redirect(`/listings/new/${listingId}/build?error=incomplete`);
+    redirect(`/listings/new/${listingId}/frame?error=incomplete`);
   }
   if (!row.condition_id) {
     redirect(`/listings/new/${listingId}/condition?error=incomplete`);

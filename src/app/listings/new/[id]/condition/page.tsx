@@ -134,7 +134,7 @@ export default async function WizardConditionPage({
           </Field>
         </section>
 
-        <StepNav prevHref={`/listings/new/${draft.id}/build`} />
+        <StepNav prevHref={`/listings/new/${draft.id}/motor`} />
       </form>
     </WizardShell>
   );
