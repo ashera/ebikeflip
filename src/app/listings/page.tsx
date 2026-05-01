@@ -189,6 +189,7 @@ async function fetchListings(
       `SELECT l.id::text,
               l.title,
               l.price_cents,
+              l.seller_id::text,
               u.email AS seller_email,
               (
                 SELECT li.id::text FROM listing_images li
@@ -384,13 +385,13 @@ export default async function ListingsPage({
       ) : view === "grid" ? (
         <div className="results-rows">
           {result.listings.map((row) => (
-            <ListingRow key={row.id} data={listingFromRow(row)} />
+            <ListingRow key={row.id} data={listingFromRow(row, user?.id)} />
           ))}
         </div>
       ) : (
         <div className="results-grid">
           {result.listings.map((row) => (
-            <ListingCard key={row.id} data={listingFromRow(row)} />
+            <ListingCard key={row.id} data={listingFromRow(row, user?.id)} />
           ))}
         </div>
       )}

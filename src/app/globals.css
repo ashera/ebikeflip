@@ -904,11 +904,33 @@ textarea.input {
   font-weight: 700;
   z-index: 1;
 }
+.listing-own-flag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: var(--volt-500);
+  color: white;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  font-weight: 700;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.listing-own-flag::before {
+  content: "★";
+  font-size: 10px;
+}
 .listing-row.is-hidden { opacity: 0.7; border-style: dashed; }
 .listing-row-hidden-flag {
   position: absolute;
   top: 4px;
-  left: 4px;
+  right: 4px;
   background: oklch(35% 0.1 70);
   color: white;
   font-family: var(--font-mono);
@@ -919,6 +941,21 @@ textarea.input {
   border-radius: var(--r-pill);
   font-weight: 700;
 }
+.listing-row-own-flag {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  background: var(--volt-500);
+  color: white;
+  font-size: 11px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  line-height: 1;
+}
+.listing-row.is-own { border-color: var(--volt-200); }
 .listing-row-photo { position: relative; }
 
 .listing-stats {

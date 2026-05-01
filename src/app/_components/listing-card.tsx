@@ -18,6 +18,7 @@ export type ListingCardData = {
   highlights: [string | null, string | null, string | null];
   photo?: string;
   isHidden?: boolean;
+  isOwn?: boolean;
   interestedCount?: number;
 };
 
@@ -26,6 +27,7 @@ export type ListingCardRow = {
   title: string;
   price_cents: number;
   seller_email: string | null;
+  seller_id?: string | null;
   primary_image_id?: string | null;
   make_name: string | null;
   model: string | null;
@@ -151,7 +153,10 @@ function buildTagline(row: ListingCardRow): {
   };
 }
 
-export function listingFromRow(row: ListingCardRow): ListingCardData {
+export function listingFromRow(
+  row: ListingCardRow,
+  currentUserId?: string | null,
+): ListingCardData {
   const priceFmt = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -169,6 +174,10 @@ export function listingFromRow(row: ListingCardRow): ListingCardData {
       ? `/api/listings/${row.id}/images/${row.primary_image_id}`
       : undefined,
     isHidden: row.is_published === false,
+    isOwn:
+      currentUserId != null &&
+      row.seller_id != null &&
+      row.seller_id === currentUserId,
     interestedCount:
       row.conversation_count != null ? Number(row.conversation_count) : 0,
   };
@@ -181,13 +190,20 @@ export function ListingRow({ data }: { data: ListingCardData }) {
       .filter((s) => s !== PLACEHOLDER)
       .join(" · ") || PLACEHOLDER;
   return (
-    <article className={`listing-row ${data.isHidden ? "is-hidden" : ""}`}>
+    <article
+      className={`listing-row ${data.isHidden ? "is-hidden" : ""} ${data.isOwn ? "is-own" : ""}`}
+    >
       <div className="listing-row-photo">
         {data.photo ? (
           <img src={data.photo} alt={data.title} loading="lazy" />
         ) : (
           <span className="listing-row-photo-empty" aria-hidden>
             ebike
+          </span>
+        )}
+        {data.isOwn && (
+          <span className="listing-row-own-flag" title="Your listing">
+            ★
           </span>
         )}
         {data.isHidden && (
@@ -279,6 +295,11 @@ export function ListingCard({ data }: { data: ListingCardData }) {
           <img src={data.photo} alt={data.title} loading="lazy" />
         ) : (
           <span className="listing-photo-empty">eBike photo</span>
+        )}
+        {data.isOwn && (
+          <span className="listing-own-flag" title="Your listing">
+            Yours
+          </span>
         )}
         {data.isHidden && <span className="listing-hidden-flag">Hidden</span>}
       </div>
