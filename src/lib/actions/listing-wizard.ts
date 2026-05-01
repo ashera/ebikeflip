@@ -117,6 +117,42 @@ export async function startDraftListing(): Promise<void> {
   redirect(`/listings/new/${listingId}/photos`);
 }
 
+export async function deleteDraftImage(formData: FormData): Promise<void> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const listingId = String(formData.get("listingId") ?? "");
+  const imageId = String(formData.get("imageId") ?? "");
+  if (!/^\d+$/.test(imageId)) redirect("/listings/mine");
+  if (!(await ensureDraftOwnership(listingId, user))) {
+    redirect("/listings/mine");
+  }
+
+  const r = await query<{ was_primary: boolean }>(
+    `DELETE FROM listing_images
+       WHERE id = $1::bigint AND listing_id = $2::bigint
+       RETURNING is_primary AS was_primary`,
+    [imageId, listingId],
+  );
+
+  if (r.rows[0]?.was_primary) {
+    await query(
+      `UPDATE listing_images
+          SET is_primary = TRUE
+        WHERE id = (
+          SELECT id FROM listing_images
+            WHERE listing_id = $1::bigint
+            ORDER BY position, id
+            LIMIT 1
+        )`,
+      [listingId],
+    );
+  }
+
+  revalidatePath(`/listings/new/${listingId}/photos`);
+  redirect(`/listings/new/${listingId}/photos`);
+}
+
 export async function abandonDraftListing(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

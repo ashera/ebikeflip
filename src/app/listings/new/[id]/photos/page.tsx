@@ -1,5 +1,9 @@
 import { loadListingRefOptions } from "@/lib/ref-data";
-import { saveDraftPhotos } from "@/lib/actions/listing-wizard";
+import {
+  deleteDraftImage,
+  saveDraftPhotos,
+} from "@/lib/actions/listing-wizard";
+import { query } from "@/lib/db";
 import { Field, Input } from "../../../../_components/ui";
 import {
   loadDraft,
@@ -13,6 +17,27 @@ import {
 export const dynamic = "force-dynamic";
 
 const CURRENT_YEAR = new Date().getUTCFullYear();
+
+type DraftImageRow = {
+  id: string;
+  is_primary: boolean;
+  position: number;
+};
+
+async function fetchDraftImages(listingId: string): Promise<DraftImageRow[]> {
+  try {
+    const r = await query<DraftImageRow>(
+      `SELECT id::text, is_primary, position
+         FROM listing_images
+        WHERE listing_id = $1::bigint
+        ORDER BY is_primary DESC, position, id`,
+      [listingId],
+    );
+    return r.rows;
+  } catch {
+    return [];
+  }
+}
 
 export default async function WizardPhotosPage({
   params,
@@ -29,6 +54,7 @@ export default async function WizardPhotosPage({
     loadDraft(id, "photos"),
     loadListingRefOptions(),
   ]);
+  const images = await fetchDraftImages(draft.id);
 
   return (
     <WizardShell step="photos" draftId={draft.id} errorMessage={errorMessage}>
@@ -37,6 +63,100 @@ export default async function WizardPhotosPage({
         headline="Lead with a great photo"
         body="Listings with a clean hero shot get roughly twice the inquiries. Shoot the drive side in daylight, against a plain wall — no clutter, no garage door."
       />
+
+      {images.length > 0 && (
+        <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
+          <h2 className="card-heading">Already uploaded</h2>
+          <p className="card-sub">
+            {images.length === 1
+              ? "1 photo on this listing."
+              : `${images.length} photos on this listing.`}{" "}
+            Add more below, or remove one if it&rsquo;s wrong.
+          </p>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))",
+              gap: "var(--s-3)",
+              marginTop: "var(--s-3)",
+            }}
+          >
+            {images.map((img) => (
+              <div
+                key={img.id}
+                style={{
+                  position: "relative",
+                  borderRadius: 10,
+                  overflow: "hidden",
+                  border: "1px solid var(--line, #e9e5df)",
+                  background: "var(--surface-2, #f7f6f3)",
+                  aspectRatio: "1 / 1",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <img
+                  src={`/api/listings/${draft.id}/images/${img.id}`}
+                  alt=""
+                  style={{
+                    width: "100%",
+                    flex: "1 1 auto",
+                    objectFit: "cover",
+                    minHeight: 0,
+                  }}
+                />
+                {img.is_primary && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: 6,
+                      left: 6,
+                      background: "var(--ink-1)",
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: "0.04em",
+                      padding: "3px 7px",
+                      borderRadius: 999,
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    Default
+                  </span>
+                )}
+                <form
+                  action={deleteDraftImage}
+                  style={{
+                    position: "absolute",
+                    top: 6,
+                    right: 6,
+                  }}
+                >
+                  <input type="hidden" name="listingId" value={draft.id} />
+                  <input type="hidden" name="imageId" value={img.id} />
+                  <button
+                    type="submit"
+                    title="Remove this photo"
+                    style={{
+                      width: 26,
+                      height: 26,
+                      border: 0,
+                      borderRadius: "50%",
+                      background: "rgba(28, 24, 22, 0.7)",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: 14,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <form
         action={saveDraftPhotos}
@@ -50,7 +170,9 @@ export default async function WizardPhotosPage({
         <input type="hidden" name="listingId" value={draft.id} />
 
         <section className="form-card">
-          <h2 className="card-heading">Photos</h2>
+          <h2 className="card-heading">
+            {images.length > 0 ? "Add more photos" : "Photos"}
+          </h2>
           <p className="card-sub">
             Up to 10 · JPEG, PNG, WebP · 5 MB each. The first one becomes
             the default — pick the one you&rsquo;d want a buyer to see first.
