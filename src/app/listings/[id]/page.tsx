@@ -283,6 +283,41 @@ function buildSpecs(l: ListingRow): { group: string; items: Spec[] }[] {
   return groups.filter((g) => g.items.length > 0);
 }
 
+type ConversationSummary = {
+  id: string;
+  buyer_email: string | null;
+  msg_count: string;
+  last_at: string | null;
+};
+
+async function fetchConversationsForListing(
+  listingId: string,
+): Promise<ConversationSummary[]> {
+  try {
+    const r = await query<ConversationSummary>(
+      `SELECT c.id::text,
+              bu.email AS buyer_email,
+              (
+                SELECT COUNT(*)::text FROM messages
+                  WHERE conversation_id = c.id
+              ) AS msg_count,
+              (
+                SELECT created_at::text FROM messages
+                  WHERE conversation_id = c.id
+                  ORDER BY created_at DESC LIMIT 1
+              ) AS last_at
+         FROM conversations c
+         LEFT JOIN users bu ON bu.id = c.buyer_id
+        WHERE c.listing_id = $1::bigint
+        ORDER BY c.updated_at DESC`,
+      [listingId],
+    );
+    return r.rows;
+  } catch {
+    return [];
+  }
+}
+
 export default async function ListingDetailPage({
   params,
 }: {
@@ -337,6 +372,9 @@ export default async function ListingDetailPage({
     : "Unknown seller";
 
   const specGroups = buildSpecs(l);
+  const adminConversations = isAdmin
+    ? await fetchConversationsForListing(l.id)
+    : [];
 
   return (
     <div className="page detail-page">
@@ -482,6 +520,50 @@ export default async function ListingDetailPage({
                 </div>
               )}
             </div>
+          )}
+        </section>
+      )}
+
+      {isAdmin && (
+        <section className="admin-conversations">
+          <h2 className="detail-specs-heading">
+            Conversations{" "}
+            <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>
+              ({adminConversations.length})
+            </span>
+          </h2>
+          {adminConversations.length === 0 ? (
+            <p style={{ color: "var(--ink-3)", margin: 0 }}>
+              No conversations on this listing yet.
+            </p>
+          ) : (
+            <ul className="admin-conv-list">
+              {adminConversations.map((c) => (
+                <li key={c.id}>
+                  <Link
+                    href={`/messages/${c.id}`}
+                    className="admin-conv-item"
+                  >
+                    <span className="admin-conv-buyer">
+                      {c.buyer_email ?? "Unknown buyer"}
+                    </span>
+                    <span className="admin-conv-meta">
+                      {c.msg_count} message
+                      {Number(c.msg_count) === 1 ? "" : "s"}
+                      {c.last_at
+                        ? ` · last ${new Date(c.last_at).toLocaleDateString(
+                            "en-US",
+                            { month: "short", day: "numeric" },
+                          )}`
+                        : ""}
+                    </span>
+                    <span className="admin-conv-arrow" aria-hidden>
+                      →
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       )}

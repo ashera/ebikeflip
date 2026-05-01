@@ -29,7 +29,11 @@ type Message = {
   read_at: string | null;
 };
 
-async function fetchConversation(id: string, userId: string): Promise<{
+async function fetchConversation(
+  id: string,
+  userId: string,
+  isAdmin: boolean,
+): Promise<{
   head: ConversationHead;
   messages: Message[];
 } | null> {
@@ -59,7 +63,13 @@ async function fetchConversation(id: string, userId: string): Promise<{
   );
   const head = headRes.rows[0];
   if (!head) return null;
-  if (head.buyer_id !== userId && head.seller_id !== userId) return null;
+  if (
+    head.buyer_id !== userId &&
+    head.seller_id !== userId &&
+    !isAdmin
+  ) {
+    return null;
+  }
 
   const msgRes = await query<Message>(
     `SELECT id::text, sender_id::text, body, created_at::text, read_at::text
@@ -107,16 +117,26 @@ export default async function ConversationPage({
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const data = await fetchConversation(id, user.id);
+  const data = await fetchConversation(id, user.id, user.isAdmin);
   if (!data) notFound();
 
   const { head, messages } = data;
+  const isParticipant =
+    head.buyer_id === user.id || head.seller_id === user.id;
+  const adminViewing = !isParticipant && user.isAdmin;
   const otherEmail =
     head.buyer_id === user.id ? head.seller_email : head.buyer_email;
-  const role = head.buyer_id === user.id ? "Buying" : "Selling";
+  const role = adminViewing
+    ? "Viewing as admin"
+    : head.buyer_id === user.id
+      ? "Buying"
+      : "Selling";
 
-  // Mark incoming messages as read.
-  await markConversationRead(id, user.id);
+  // Only mark as read for participants — an admin lurking shouldn't
+  // mask unread messages for the actual buyer/seller.
+  if (isParticipant) {
+    await markConversationRead(id, user.id);
+  }
 
   const price = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -151,9 +171,23 @@ export default async function ConversationPage({
         </Link>
         <div className="thread-other">
           <span className="thread-role">{role}</span>
-          <span className="thread-other-name">{shortName(otherEmail)}</span>
+          <span className="thread-other-name">
+            {adminViewing
+              ? `${shortName(head.buyer_email)} ↔ ${shortName(head.seller_email)}`
+              : shortName(otherEmail)}
+          </span>
         </div>
       </div>
+
+      {adminViewing && (
+        <div className="hidden-banner" style={{ marginBottom: "var(--s-5)" }}>
+          <strong>Admin view.</strong>
+          <span>
+            Marks-read and replies are disabled to avoid disturbing the
+            participants&rsquo; thread state.
+          </span>
+        </div>
+      )}
 
       <ul className="thread-messages">
         {messages.length === 0 && (
@@ -182,6 +216,7 @@ export default async function ConversationPage({
         })}
       </ul>
 
+      {!adminViewing && (
       <form action={sendMessage} className="thread-compose">
         <input type="hidden" name="conversationId" value={head.id} />
         <Textarea
@@ -203,6 +238,7 @@ export default async function ConversationPage({
           </Button>
         </div>
       </form>
+      )}
     </div>
   );
 }
