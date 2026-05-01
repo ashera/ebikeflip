@@ -70,9 +70,10 @@ function compactClass(label: string | null): string | null {
 }
 
 function fmtRange(min: number | null, max: number | null): string | null {
-  if (min == null && max == null) return null;
-  if (min != null && max != null && min !== max) return `${min}–${max} km`;
-  return `${min ?? max} km`;
+  // Show only the max so the stat cell doesn't overflow on the grid card.
+  // Falls back to min if the seller only filled the lower bound.
+  const v = max ?? min;
+  return v == null ? null : `${v} km`;
 }
 
 function buildChips(row: ListingCardRow): [string, string, string] {
