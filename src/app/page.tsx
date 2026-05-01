@@ -152,7 +152,7 @@ async function getFeaturedListings(
           AND l.sold_at IS NULL
           ${regionId ? "AND l.region_id = $1::bigint" : ""}
         ORDER BY l.created_at DESC
-        LIMIT 4`,
+        LIMIT 3`,
       regionId ? [regionId] : [],
     );
     return r.rows;
