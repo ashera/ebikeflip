@@ -211,6 +211,15 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 .topbar-stats.--ok .dot { background: var(--ok-500); }
 .topbar-stats.--err .dot { background: var(--danger-500); }
+.topbar-stats.is-link {
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur), border-color var(--dur);
+}
+.topbar-stats.is-link:hover {
+  background: var(--surface);
+  border-color: var(--hairline-strong);
+}
 @media (max-width: 640px) {
   .topbar-stats { display: none; }
 }

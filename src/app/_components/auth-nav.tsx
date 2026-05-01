@@ -45,19 +45,37 @@ export async function AuthNav() {
           <span className="brand-mark">eb</span>
           ebikeflip
         </Link>
-        <div
-          className={`topbar-stats ${dbOk ? "--ok" : "--err"}`}
-          title={dbOk ? "Database connected" : "Database unreachable"}
-        >
-          <span>
-            <b>{listingCount ?? "—"}</b> listings
-          </span>
-          <span className="sep" aria-hidden>
-            ·
-          </span>
-          <span className="dot" aria-hidden />
-          <span>{dbOk ? "Live" : "Down"}</span>
-        </div>
+        {(() => {
+          const stats = (
+            <>
+              <span>
+                <b>{listingCount ?? "—"}</b> listings
+              </span>
+              <span className="sep" aria-hidden>
+                ·
+              </span>
+              <span className="dot" aria-hidden />
+              <span>{dbOk ? "Live" : "Down"}</span>
+            </>
+          );
+          const cls = `topbar-stats ${dbOk ? "--ok" : "--err"}`;
+          return user?.isAdmin ? (
+            <Link
+              href="/status"
+              className={`${cls} is-link`}
+              title="Open status dashboard"
+            >
+              {stats}
+            </Link>
+          ) : (
+            <div
+              className={cls}
+              title={dbOk ? "Database connected" : "Database unreachable"}
+            >
+              {stats}
+            </div>
+          );
+        })()}
       </div>
 
       <MobileMenu>
@@ -76,7 +94,6 @@ export async function AuthNav() {
                 )}
               </Link>
             )}
-            <Link href="/status">Status</Link>
             {user?.isAdmin && (
               <Link href="/admin" className="nav-admin">
                 Admin
