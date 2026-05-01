@@ -20,10 +20,6 @@ export default async function PickRegionPage() {
       : ipLocation;
 
   return (
-    <RegionPicker
-      detected={detectedDisplay}
-      regions={regions}
-      next="/listings"
-    />
+    <RegionPicker detected={detectedDisplay} regions={regions} next="/" />
   );
 }

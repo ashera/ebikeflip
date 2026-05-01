@@ -2,7 +2,7 @@ import Link from "next/link";
 import { logout } from "@/lib/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { getAnonymousLocation } from "@/lib/geo";
+import { resolveCurrentRegion } from "@/lib/regions";
 import { unreadMessageCount } from "@/lib/messages";
 import { Button, ButtonLink } from "./ui";
 import { MobileMenu } from "./mobile-menu";
@@ -28,12 +28,14 @@ async function getListingCount(): Promise<number | null> {
 }
 
 export async function AuthNav() {
-  const [user, dbOk, listingCount, anonLocation] = await Promise.all([
+  const [user, dbOk, listingCount, region] = await Promise.all([
     getCurrentUser(),
     getDbOk(),
     getListingCount(),
-    getAnonymousLocation(),
+    resolveCurrentRegion(),
   ]);
+  const currentRegion =
+    region.kind === "selected" || region.kind === "auto" ? region.region : null;
   const unread = user ? await unreadMessageCount(user.id) : 0;
 
   return (
@@ -83,17 +85,21 @@ export async function AuthNav() {
           </nav>
 
           <div className="actions">
+            <Link
+              href="/regions/pick"
+              className="region-pill"
+              title="Click to change region"
+            >
+              <span>{currentRegion ? currentRegion.label : "Pick region"}</span>
+              <span className="region-pill-x" aria-hidden>
+                ⌄
+              </span>
+            </Link>
+
             {user ? (
               <>
-                <Link href="/profile" className="who-link">
-                  <span className="who">{user.email}</span>
-                  {user.location ? (
-                    <span className="who-loc">{user.location}</span>
-                  ) : (
-                    <span className="who-loc who-loc--empty">
-                      Set location
-                    </span>
-                  )}
+                <Link href="/profile" className="who">
+                  {user.email}
                 </Link>
                 <form action={logout}>
                   <Button type="submit" variant="ghost" size="sm">
@@ -103,16 +109,6 @@ export async function AuthNav() {
               </>
             ) : (
               <>
-                <Link
-                  href="/regions/pick"
-                  className="anon-loc"
-                  title="Click to change region"
-                >
-                  <span>{anonLocation ?? "Pick region"}</span>
-                  <span className="anon-loc-x" aria-hidden>
-                    ⌄
-                  </span>
-                </Link>
                 <ButtonLink href="/login" variant="ghost" size="sm">
                   Log in
                 </ButtonLink>

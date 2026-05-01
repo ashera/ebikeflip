@@ -8,7 +8,7 @@ type Props = {
   next?: string;
 };
 
-export function RegionPicker({ detected, regions, next = "/listings" }: Props) {
+export function RegionPicker({ detected, regions, next = "/" }: Props) {
   return (
     <div className="region-gate-overlay" role="dialog" aria-modal="true">
       <div className="region-gate-card">

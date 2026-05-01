@@ -526,66 +526,54 @@ input, select, textarea { font: inherit; color: inherit; }
   font-family: var(--font-mono);
   font-size: var(--t-body-s);
   color: var(--ink-3);
-}
-.topbar .who-link {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 1px;
   text-decoration: none;
-  line-height: 1.2;
-  transition: opacity var(--dur);
+  transition: color var(--dur);
 }
-.topbar .who-link:hover { opacity: 0.7; }
-.topbar .who-loc {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-4);
-  white-space: nowrap;
-}
-.topbar .who-loc--empty {
-  color: var(--volt-700);
-  font-weight: 600;
-}
-.topbar .anon-loc {
+.topbar .who:hover { color: var(--ink-1); }
+
+.topbar .region-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--volt-200);
   border-radius: var(--r-pill);
-  background: var(--surface-sunken);
+  background: var(--volt-50);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--volt-800);
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
   transition: background var(--dur), border-color var(--dur), color var(--dur);
 }
-.topbar .anon-loc:hover {
-  background: var(--surface);
-  border-color: var(--hairline-strong);
-  color: var(--ink-1);
+.topbar .region-pill:hover {
+  background: var(--volt-100);
+  border-color: var(--volt-300);
 }
-.topbar .anon-loc::before {
+.topbar .region-pill::before {
   content: "";
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ink-4);
+  background: var(--volt-500);
 }
-.topbar .anon-loc-x {
+.topbar .region-pill-x {
   font-size: 10px;
-  opacity: 0.6;
+  opacity: 0.7;
   margin-left: 2px;
 }
-@media (max-width: 640px) {
-  .topbar .anon-loc { display: none; }
+@media (max-width: 540px) {
+  .topbar .region-pill {
+    max-width: 140px;
+  }
+  .topbar .region-pill > span:first-of-type {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 /* =========================================================

@@ -28,10 +28,6 @@ export async function RegionGate({
   if (r.kind === "selected" || r.kind === "auto") return <>{children}</>;
 
   return (
-    <RegionPicker
-      detected={r.ipLocation}
-      regions={r.regions}
-      next={path === "/" ? "/listings" : path}
-    />
+    <RegionPicker detected={r.ipLocation} regions={r.regions} next="/" />
   );
 }
