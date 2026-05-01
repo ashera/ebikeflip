@@ -956,6 +956,38 @@ textarea.input {
   line-height: 1;
 }
 .listing-row.is-own { border-color: var(--volt-200); }
+
+/* Shortlist toggle button (heart) */
+.shortlist-form { position: absolute; bottom: 12px; right: 12px; z-index: 1; }
+.shortlist-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: oklch(100% 0 0 / 0.92);
+  backdrop-filter: blur(4px);
+  color: var(--ink-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background var(--dur), color var(--dur), border-color var(--dur), transform var(--dur);
+}
+.shortlist-btn:hover { transform: scale(1.05); color: var(--ink-1); }
+.shortlist-btn.is-on {
+  background: var(--volt-500);
+  color: white;
+  border-color: var(--volt-500);
+}
+.shortlist-btn.is-on .ico { fill: white; stroke: white; }
+.shortlist-btn.is-row {
+  width: 24px;
+  height: 24px;
+}
+.shortlist-btn.is-row .ico { width: 12px; height: 12px; }
+.listing-row-photo .shortlist-form {
+  bottom: 4px;
+  right: 4px;
+}
 .listing-row-photo { position: relative; }
 
 .listing-stats {

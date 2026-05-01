@@ -1,4 +1,5 @@
 import { ButtonLink, Icon } from "./ui";
+import { toggleShortlist } from "@/lib/actions/shortlist";
 
 export type StatIcon = "range" | "battery" | "speed" | "weight";
 
@@ -19,6 +20,8 @@ export type ListingCardData = {
   photo?: string;
   isHidden?: boolean;
   isOwn?: boolean;
+  isShortlisted?: boolean;
+  showShortlist?: boolean;
   interestedCount?: number;
 };
 
@@ -156,7 +159,16 @@ function buildTagline(row: ListingCardRow): {
 export function listingFromRow(
   row: ListingCardRow,
   currentUserId?: string | null,
+  shortlistedIds?: Set<string> | null,
 ): ListingCardData {
+  const isOwn =
+    currentUserId != null &&
+    row.seller_id != null &&
+    row.seller_id === currentUserId;
+  const isShortlisted =
+    shortlistedIds != null && shortlistedIds.has(row.id);
+  // Only show the toggle when logged in and not the owner.
+  const showShortlist = currentUserId != null && !isOwn;
   const priceFmt = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -174,13 +186,39 @@ export function listingFromRow(
       ? `/api/listings/${row.id}/images/${row.primary_image_id}`
       : undefined,
     isHidden: row.is_published === false,
-    isOwn:
-      currentUserId != null &&
-      row.seller_id != null &&
-      row.seller_id === currentUserId,
+    isOwn,
+    isShortlisted,
+    showShortlist,
     interestedCount:
       row.conversation_count != null ? Number(row.conversation_count) : 0,
   };
+}
+
+function ShortlistButton({
+  listingId,
+  isShortlisted,
+  variant,
+}: {
+  listingId: string;
+  isShortlisted: boolean;
+  variant: "card" | "row";
+}) {
+  return (
+    <form action={toggleShortlist} className="shortlist-form">
+      <input type="hidden" name="listingId" value={listingId} />
+      <input type="hidden" name="next" value={`/listings/${listingId}`} />
+      <button
+        type="submit"
+        className={`shortlist-btn ${variant === "row" ? "is-row" : ""} ${
+          isShortlisted ? "is-on" : ""
+        }`}
+        aria-label={isShortlisted ? "Remove from shortlist" : "Add to shortlist"}
+        title={isShortlisted ? "Remove from shortlist" : "Save to shortlist"}
+      >
+        <Icon name="heart" size="sm" />
+      </button>
+    </form>
+  );
 }
 
 export function ListingRow({ data }: { data: ListingCardData }) {
@@ -208,6 +246,13 @@ export function ListingRow({ data }: { data: ListingCardData }) {
         )}
         {data.isHidden && (
           <span className="listing-row-hidden-flag">Hidden</span>
+        )}
+        {data.showShortlist && (
+          <ShortlistButton
+            listingId={data.id}
+            isShortlisted={!!data.isShortlisted}
+            variant="row"
+          />
         )}
       </div>
 
@@ -302,6 +347,13 @@ export function ListingCard({ data }: { data: ListingCardData }) {
           </span>
         )}
         {data.isHidden && <span className="listing-hidden-flag">Hidden</span>}
+        {data.showShortlist && (
+          <ShortlistButton
+            listingId={data.id}
+            isShortlisted={!!data.isShortlisted}
+            variant="card"
+          />
+        )}
       </div>
 
       <div className="listing-stats">

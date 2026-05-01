@@ -404,3 +404,18 @@ CREATE INDEX IF NOT EXISTS messages_conversation_idx
   ON messages (conversation_id, created_at);
 CREATE INDEX IF NOT EXISTS messages_unread_idx
   ON messages (conversation_id, sender_id) WHERE read_at IS NULL;
+
+-- =========================================================
+-- Shortlist (per-user saved listings)
+-- =========================================================
+
+CREATE TABLE IF NOT EXISTS shortlists (
+  user_id    BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  listing_id BIGINT       NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, listing_id)
+);
+
+CREATE INDEX IF NOT EXISTS shortlists_user_idx
+  ON shortlists (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS shortlists_listing_idx ON shortlists (listing_id);

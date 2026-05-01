@@ -4,7 +4,9 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getCurrentRegionId } from "@/lib/regions";
 import { startConversation } from "@/lib/actions/messages";
-import { Button, ButtonLink } from "../../_components/ui";
+import { toggleShortlist } from "@/lib/actions/shortlist";
+import { getShortlistIds } from "@/lib/shortlist";
+import { Button, ButtonLink, Icon } from "../../_components/ui";
 import {
   ListingGallery,
   type GalleryImage,
@@ -329,6 +331,7 @@ export default async function ListingDetailPage({
     getCurrentUser(),
     getCurrentRegionId(),
   ]);
+  const shortlistedIds = await getShortlistIds(currentUser?.id);
 
   if (!result.ok) {
     return (
@@ -471,6 +474,24 @@ export default async function ListingDetailPage({
                 Log in to contact seller
               </ButtonLink>
             ) : null}
+            {!isOwner && currentUser && (
+              <form action={toggleShortlist}>
+                <input type="hidden" name="listingId" value={l.id} />
+                <input
+                  type="hidden"
+                  name="next"
+                  value={`/listings/${l.id}`}
+                />
+                <Button
+                  type="submit"
+                  variant={shortlistedIds.has(l.id) ? "primary" : "ghost"}
+                  size="lg"
+                >
+                  <Icon name="heart" size="sm" />
+                  {shortlistedIds.has(l.id) ? "Saved" : "Save"}
+                </Button>
+              </form>
+            )}
             <ButtonLink href="/listings" variant="ghost" size="lg">
               See more bikes
             </ButtonLink>

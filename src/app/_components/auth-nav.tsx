@@ -117,6 +117,7 @@ export async function AuthNav() {
           <nav>
             <Link href="/listings">Browse</Link>
             <Link href="/listings/new">Sell</Link>
+            {user && <Link href="/shortlist">Saved</Link>}
             {user && <Link href="/listings/mine">My listings</Link>}
             {user && (
               <Link href="/messages" className="nav-messages">

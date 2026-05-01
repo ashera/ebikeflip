@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { findRefTable, listActiveRefOptions } from "@/lib/ref-data";
 import { getCurrentRegionId } from "@/lib/regions";
+import { getShortlistIds } from "@/lib/shortlist";
 import { ButtonLink } from "../_components/ui";
 import {
   ListingCard,
@@ -309,9 +310,10 @@ export default async function ListingsPage({
   const view: ListingsView =
     (Array.isArray(sp.view) ? sp.view[0] : sp.view) === "grid" ? "grid" : "cards";
 
-  const [result, options] = await Promise.all([
+  const [result, options, shortlistedIds] = await Promise.all([
     fetchListings(whereSql, params),
     loadFilterOptions(),
+    getShortlistIds(user?.id),
   ]);
 
   const count = result.ok ? result.listings.length : 0;
@@ -385,13 +387,13 @@ export default async function ListingsPage({
       ) : view === "grid" ? (
         <div className="results-rows">
           {result.listings.map((row) => (
-            <ListingRow key={row.id} data={listingFromRow(row, user?.id)} />
+            <ListingRow key={row.id} data={listingFromRow(row, user?.id, shortlistedIds)} />
           ))}
         </div>
       ) : (
         <div className="results-grid">
           {result.listings.map((row) => (
-            <ListingCard key={row.id} data={listingFromRow(row, user?.id)} />
+            <ListingCard key={row.id} data={listingFromRow(row, user?.id, shortlistedIds)} />
           ))}
         </div>
       )}
