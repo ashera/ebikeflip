@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { updateLocation } from "@/lib/actions/auth";
 import { suggestLocationFromIp } from "@/lib/geo";
-import { Button, Field, Input } from "../_components/ui";
+import { listActiveRegions, matchRegion } from "@/lib/regions";
+import { Button, Field } from "../_components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,17 @@ export default async function ProfilePage({
   if (!user) redirect("/login");
 
   const { saved } = await searchParams;
-  const suggestion = !user.location ? await suggestLocationFromIp() : null;
+  const regions = await listActiveRegions();
+
+  // IP-based suggestion: only meaningful if it maps to one of our regions.
+  const ipSuggestion = !user.location ? await suggestLocationFromIp() : null;
+  const matchedRegion =
+    ipSuggestion && regions.length > 0
+      ? matchRegion(regions, ipSuggestion.display)
+      : null;
+
+  // Pre-select existing value when it matches a region label exactly.
+  const currentLabel = user.location ?? "";
 
   return (
     <div className="page page--pad">
@@ -46,26 +57,45 @@ export default async function ProfilePage({
         <section className="form-card">
           <h2 className="card-heading">Location</h2>
           <p className="card-sub">
-            Shown next to your email in the menu bar and on your listings.
+            Pick the region we serve that&rsquo;s closest to you. Used to
+            tailor the listings you see and shown next to your email in the
+            menu bar.
           </p>
 
-          {suggestion && (
+          {matchedRegion && (
             <div className="ip-suggest">
               <div className="ip-suggest-text">
-                <strong>Looks like you&rsquo;re in {suggestion.display}.</strong>
-                <span> Use this as your location?</span>
+                <strong>
+                  Looks like you&rsquo;re in {ipSuggestion!.display}.
+                </strong>
+                <span> Set your region to {matchedRegion.label}?</span>
               </div>
               <form action={updateLocation}>
                 <input
                   type="hidden"
                   name="location"
-                  value={suggestion.display}
+                  value={matchedRegion.label}
                 />
-                <Button type="submit" variant="primary" size="sm" iconRight="check">
-                  Use {suggestion.display}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  iconRight="check"
+                >
+                  Use {matchedRegion.label}
                 </Button>
               </form>
             </div>
+          )}
+
+          {!matchedRegion && ipSuggestion && (
+            <p
+              className="card-sub"
+              style={{ color: "var(--ink-4)", fontStyle: "italic" }}
+            >
+              We detected you in {ipSuggestion.display}, but it&rsquo;s not in
+              one of our covered regions yet. Pick the closest below.
+            </p>
           )}
 
           <form
@@ -77,22 +107,28 @@ export default async function ProfilePage({
             }}
           >
             <Field
-              label="City or postal code"
+              label="Region"
               htmlFor="location"
               help={
-                suggestion
-                  ? "Or type your own — IP-based suggestions are approximate."
-                  : "Optional. Free text — anything you want buyers to see."
+                regions.length === 0
+                  ? "No regions are configured yet. Ask an admin."
+                  : "Choose one of the regions we currently serve."
               }
             >
-              <Input
+              <select
                 id="location"
                 name="location"
-                type="text"
-                maxLength={64}
-                defaultValue={user.location ?? ""}
-                placeholder="e.g. Austin, TX or 78701"
-              />
+                className="input"
+                defaultValue={currentLabel}
+                required={regions.length > 0}
+              >
+                <option value="">Select a region</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.label}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <div style={{ display: "flex", justifyContent: "flex-end" }}>

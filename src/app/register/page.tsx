@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { register } from "@/lib/actions/auth";
 import { getCurrentUser } from "@/lib/auth";
+import { getAnonymousLocation } from "@/lib/geo";
+import { listActiveRegions, matchRegion } from "@/lib/regions";
 import { Button, Field, Input } from "../_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +26,11 @@ export default async function RegisterPage({
 
   const { error } = await searchParams;
   const errorMessage = error ? ERRORS[error] ?? "Something went wrong." : null;
+
+  const regions = await listActiveRegions();
+  const ipLoc = await getAnonymousLocation();
+  const detectedRegion =
+    ipLoc && regions.length > 0 ? matchRegion(regions, ipLoc) : null;
 
   return (
     <div className="page auth-page">
@@ -69,18 +76,29 @@ export default async function RegisterPage({
             </Field>
 
             <Field
-              label="Location"
+              label="Region"
               htmlFor="location"
-              help="City or postal code. Optional — buyers see it on your listings."
+              help={
+                regions.length === 0
+                  ? "No regions configured. You'll be able to set this from your profile later."
+                  : detectedRegion
+                    ? `Pre-selected from your IP (${detectedRegion.label}). Change if not right.`
+                    : "Pick the region we serve that's closest to you. Optional."
+              }
             >
-              <Input
+              <select
                 id="location"
-                type="text"
                 name="location"
-                maxLength={64}
-                autoComplete="address-level2"
-                placeholder="e.g. Austin, TX or 78701"
-              />
+                className="input"
+                defaultValue={detectedRegion?.label ?? ""}
+              >
+                <option value="">Select a region (optional)</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.label}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             {errorMessage && <p className="form-error">{errorMessage}</p>}
