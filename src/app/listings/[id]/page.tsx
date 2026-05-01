@@ -23,6 +23,7 @@ type ListingRow = {
   seller_email: string | null;
   seller_id: string | null;
   is_published: boolean;
+  offers_enabled: boolean;
   region_id: string | null;
   conversation_count: string;
   // detail fields
@@ -80,6 +81,7 @@ const LISTING_SELECT = `
   l.created_at::text,
   l.seller_id::text,
   l.is_published,
+  l.offers_enabled,
   l.region_id::text,
   (
     SELECT COUNT(DISTINCT buyer_id)::text FROM conversations
@@ -292,6 +294,47 @@ type ConversationSummary = {
   last_at: string | null;
 };
 
+type OfferRow = {
+  id: string;
+  buyer_id: string;
+  buyer_email: string | null;
+  amount_cents: number;
+  note: string | null;
+  status: string;
+  created_at: string;
+  conversation_id: string | null;
+};
+
+async function fetchOffersForListing(
+  listingId: string,
+): Promise<OfferRow[]> {
+  try {
+    const r = await query<OfferRow>(
+      `SELECT o.id::text,
+              o.buyer_id::text,
+              u.email AS buyer_email,
+              o.amount_cents,
+              o.note,
+              o.status,
+              o.created_at::text,
+              (
+                SELECT c.id::text FROM conversations c
+                  WHERE c.listing_id = o.listing_id
+                    AND c.buyer_id = o.buyer_id
+                  LIMIT 1
+              ) AS conversation_id
+         FROM offers o
+         LEFT JOIN users u ON u.id = o.buyer_id
+        WHERE o.listing_id = $1::bigint
+        ORDER BY o.created_at DESC`,
+      [listingId],
+    );
+    return r.rows;
+  } catch {
+    return [];
+  }
+}
+
 async function fetchConversationsForListing(
   listingId: string,
 ): Promise<ConversationSummary[]> {
@@ -377,6 +420,9 @@ export default async function ListingDetailPage({
   const specGroups = buildSpecs(l);
   const adminConversations = isAdmin
     ? await fetchConversationsForListing(l.id)
+    : [];
+  const offers = (isOwner || isAdmin) && l.offers_enabled
+    ? await fetchOffersForListing(l.id)
     : [];
 
   return (
@@ -474,6 +520,19 @@ export default async function ListingDetailPage({
                 Log in to contact seller
               </ButtonLink>
             ) : null}
+            {!isOwner && l.seller_id && l.offers_enabled && (
+              <ButtonLink
+                href={
+                  currentUser
+                    ? `/listings/${l.id}/offer`
+                    : `/login?next=${encodeURIComponent(`/listings/${l.id}/offer`)}`
+                }
+                variant="dark"
+                size="lg"
+              >
+                Make an offer
+              </ButtonLink>
+            )}
             {!isOwner && currentUser && (
               <form action={toggleShortlist}>
                 <input type="hidden" name="listingId" value={l.id} />
@@ -541,6 +600,67 @@ export default async function ListingDetailPage({
                 </div>
               )}
             </div>
+          )}
+        </section>
+      )}
+
+      {(isOwner || isAdmin) && l.offers_enabled && (
+        <section className="admin-conversations">
+          <h2 className="detail-specs-heading">
+            Offers received{" "}
+            <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>
+              ({offers.length})
+            </span>
+          </h2>
+          {offers.length === 0 ? (
+            <p style={{ color: "var(--ink-3)", margin: 0 }}>
+              No offers yet. Buyers will appear here when they propose a
+              price.
+            </p>
+          ) : (
+            <ul className="admin-conv-list">
+              {offers.map((o) => {
+                const amount = new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: "USD",
+                  maximumFractionDigits: 0,
+                }).format(o.amount_cents / 100);
+                const when = new Date(o.created_at).toLocaleDateString(
+                  "en-US",
+                  { month: "short", day: "numeric" },
+                );
+                const inner = (
+                  <>
+                    <span className="admin-conv-buyer">
+                      <strong>{amount}</strong>
+                      {" — "}
+                      {o.buyer_email ?? "Unknown buyer"}
+                    </span>
+                    <span className="admin-conv-meta">
+                      {when}
+                      {o.note ? ` · "${o.note.slice(0, 80)}"` : ""}
+                    </span>
+                    <span className="admin-conv-arrow" aria-hidden>
+                      →
+                    </span>
+                  </>
+                );
+                return (
+                  <li key={o.id}>
+                    {o.conversation_id ? (
+                      <Link
+                        href={`/messages/${o.conversation_id}`}
+                        className="admin-conv-item"
+                      >
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div className="admin-conv-item">{inner}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
       )}

@@ -5,6 +5,7 @@ export type ListingFormDefaults = {
   title?: string | null;
   description?: string | null;
   price_dollars?: string;
+  offers_enabled?: boolean;
   region_id?: string | null;
   make_id?: string | null;
   model?: string | null;
@@ -241,6 +242,17 @@ export function ListingForm({
             defaultValue={defaults.description ?? ""}
           />
         </Field>
+
+        <label className="check-row">
+          <input
+            type="checkbox"
+            name="offers_enabled"
+            defaultChecked={!!defaults.offers_enabled}
+          />
+          <span>
+            Open to offers — buyers can propose a different price
+          </span>
+        </label>
       </section>
 
       <section className="form-card">

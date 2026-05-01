@@ -422,3 +422,23 @@ ALTER TABLE shortlists
 CREATE INDEX IF NOT EXISTS shortlists_user_idx
   ON shortlists (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS shortlists_listing_idx ON shortlists (listing_id);
+
+-- =========================================================
+-- Make-an-offer
+-- =========================================================
+
+ALTER TABLE listings
+  ADD COLUMN IF NOT EXISTS offers_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS offers (
+  id           BIGSERIAL    PRIMARY KEY,
+  listing_id   BIGINT       NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+  buyer_id     BIGINT       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  amount_cents INTEGER      NOT NULL CHECK (amount_cents > 0),
+  note         TEXT,
+  status       TEXT         NOT NULL DEFAULT 'pending',
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS offers_listing_idx ON offers (listing_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS offers_buyer_idx ON offers (buyer_id, created_at DESC);

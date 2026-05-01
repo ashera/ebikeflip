@@ -147,6 +147,7 @@ type ListingFields = {
   warranty_text: string | null;
   has_original_receipt: boolean;
   body_position_id: string | null;
+  offers_enabled: boolean;
 };
 
 type ParseResult =
@@ -260,6 +261,7 @@ function parseListingFields(formData: FormData): ParseResult {
       warranty_text: nullableString(getString(formData, "warranty_text", 500)),
       has_original_receipt: getCheckbox(formData, "has_original_receipt"),
       body_position_id: getOptionalId(formData, "body_position_id"),
+      offers_enabled: getCheckbox(formData, "offers_enabled"),
     },
   };
 }
@@ -308,6 +310,7 @@ function listingValuesForInsert(f: ListingFields, sellerId: string) {
     f.warranty_text,
     f.has_original_receipt,
     f.body_position_id,
+    f.offers_enabled,
   ];
 }
 
@@ -321,7 +324,7 @@ const INSERT_COLUMNS = `
   charge_time_hours, top_speed_mph, range_miles_min, range_miles_max,
   drive_mode_id, mileage, color, weight_lbs, display_type, drivetrain,
   accessories, modifications, has_warranty, warranty_text,
-  has_original_receipt, body_position_id, region_id
+  has_original_receipt, body_position_id, offers_enabled, region_id
 `;
 
 const UPDATE_SET = `
@@ -366,7 +369,8 @@ const UPDATE_SET = `
   warranty_text = $40,
   has_original_receipt = $41,
   body_position_id = NULLIF($42, '')::bigint,
-  region_id = NULLIF($43, '')::bigint
+  offers_enabled = $43,
+  region_id = NULLIF($44, '')::bigint
 `;
 
 function collectImageFiles(formData: FormData): File[] {
@@ -532,7 +536,7 @@ export async function updateListing(formData: FormData): Promise<void> {
   await query(
     `UPDATE listings SET ${UPDATE_SET}
       WHERE id = $1::bigint
-        AND (seller_id = $44::bigint OR $45::boolean)`,
+        AND (seller_id = $45::bigint OR $46::boolean)`,
     [
       listingId,
       f.title,
@@ -576,6 +580,7 @@ export async function updateListing(formData: FormData): Promise<void> {
       f.warranty_text,
       f.has_original_receipt,
       f.body_position_id ?? "",
+      f.offers_enabled,
       regionId,
       user.id,
       user.isAdmin,
