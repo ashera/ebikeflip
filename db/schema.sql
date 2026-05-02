@@ -654,12 +654,15 @@ ALTER TABLE blog_keywords
   ADD COLUMN IF NOT EXISTS serp_analysis_json JSONB,
   ADD COLUMN IF NOT EXISTS serp_analyzed_at   TIMESTAMPTZ;
 
--- One Pexels hero image per keyword. Refresh advances page_offset so the
--- next fetch returns a different result.
+-- Up to 5 Pexels hero candidates per keyword, slotted 0-4. Each slot
+-- refreshes independently. include_in_post is the flag the post generator
+-- reads to decide which images to embed.
 CREATE TABLE IF NOT EXISTS blog_keyword_images (
   id               BIGSERIAL    PRIMARY KEY,
-  keyword_id       BIGINT       NOT NULL UNIQUE
+  keyword_id       BIGINT       NOT NULL
                                 REFERENCES blog_keywords(id) ON DELETE CASCADE,
+  slot             INTEGER      NOT NULL DEFAULT 0,
+  include_in_post  BOOLEAN      NOT NULL DEFAULT TRUE,
   source           TEXT         NOT NULL DEFAULT 'pexels',
   source_id        TEXT         NOT NULL,
   url_large        TEXT         NOT NULL,
@@ -672,6 +675,16 @@ CREATE TABLE IF NOT EXISTS blog_keyword_images (
   created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- Earlier revision had keyword_id UNIQUE; replace with a (keyword_id, slot)
+-- composite. ALTERs are idempotent and tolerant of either prior state.
+ALTER TABLE blog_keyword_images
+  DROP CONSTRAINT IF EXISTS blog_keyword_images_keyword_id_key;
+ALTER TABLE blog_keyword_images
+  ADD COLUMN IF NOT EXISTS slot            INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS include_in_post BOOLEAN NOT NULL DEFAULT TRUE;
+CREATE UNIQUE INDEX IF NOT EXISTS blog_keyword_images_slot_idx
+  ON blog_keyword_images (keyword_id, slot);
 
 -- Backfill existing accounts as verified — pre-rollout users shouldn't be
 -- nagged after the fact.
