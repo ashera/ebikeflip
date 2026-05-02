@@ -21,6 +21,24 @@ type PostRow = {
   author_email: string | null;
 };
 
+type TagRow = { slug: string; label: string };
+
+async function fetchTagsForPost(postId: string): Promise<TagRow[]> {
+  try {
+    const r = await query<TagRow>(
+      `SELECT t.slug, t.label
+         FROM blog_post_tags pt
+         JOIN blog_tags t ON t.id = pt.tag_id
+        WHERE pt.post_id = $1::bigint
+        ORDER BY t.sort_order, t.label`,
+      [postId],
+    );
+    return r.rows;
+  } catch {
+    return [];
+  }
+}
+
 async function fetchPost(slug: string): Promise<PostRow | null> {
   try {
     const r = await query<PostRow>(
@@ -116,6 +134,7 @@ export default async function BlogPostPage({
   const { slug } = await params;
   const [post, user] = await Promise.all([fetchPost(slug), getCurrentUser()]);
   if (!post) notFound();
+  const tags = await fetchTagsForPost(post.id);
 
   const isAdmin = user?.isAdmin ?? false;
   const isLive =
@@ -223,6 +242,47 @@ export default async function BlogPostPage({
           className="prose"
           dangerouslySetInnerHTML={{ __html: html }}
         />
+
+        {tags.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              marginTop: "var(--s-7)",
+              paddingTop: "var(--s-5)",
+              borderTop: "1px solid var(--hairline)",
+            }}
+          >
+            <span
+              style={{
+                color: "var(--ink-3)",
+                fontSize: "var(--t-body-s)",
+                marginRight: 4,
+                alignSelf: "center",
+              }}
+            >
+              Filed under
+            </span>
+            {tags.map((t) => (
+              <Link
+                key={t.slug}
+                href={`/blog/tag/${t.slug}`}
+                style={{
+                  display: "inline-block",
+                  padding: "4px 12px",
+                  borderRadius: 999,
+                  background: "var(--surface-sunken)",
+                  color: "var(--ink-2)",
+                  fontSize: "var(--t-body-s)",
+                  textDecoration: "none",
+                }}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </div>
+        )}
 
         <script
           type="application/ld+json"

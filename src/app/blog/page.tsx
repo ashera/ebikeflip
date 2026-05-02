@@ -16,7 +16,35 @@ type PostRow = {
   published_at: string;
   author_first_name: string | null;
   author_email: string | null;
+  tag_labels: string | null;
+  tag_slugs: string | null;
 };
+
+type TagRow = { slug: string; label: string; n: number };
+
+async function fetchTags(): Promise<TagRow[]> {
+  try {
+    const r = await query<{ slug: string; label: string; n: string }>(
+      `SELECT t.slug, t.label, COUNT(pt.post_id)::text AS n
+         FROM blog_tags t
+         LEFT JOIN blog_post_tags pt ON pt.tag_id = t.id
+         LEFT JOIN blog_posts p
+                ON p.id = pt.post_id
+               AND p.published_at IS NOT NULL
+               AND p.published_at <= NOW()
+        GROUP BY t.id, t.slug, t.label, t.sort_order
+       HAVING COUNT(p.id) > 0
+        ORDER BY t.sort_order, t.label`,
+    );
+    return r.rows.map((row) => ({
+      slug: row.slug,
+      label: row.label,
+      n: Number(row.n ?? 0),
+    }));
+  } catch {
+    return [];
+  }
+}
 
 async function fetchPosts(
   page: number,
@@ -32,7 +60,19 @@ async function fetchPosts(
                 p.hero_image_id::text,
                 p.published_at::text,
                 u.first_name AS author_first_name,
-                u.email      AS author_email
+                u.email      AS author_email,
+                (
+                  SELECT STRING_AGG(t.label, '|' ORDER BY t.sort_order, t.label)
+                    FROM blog_post_tags pt
+                    JOIN blog_tags t ON t.id = pt.tag_id
+                   WHERE pt.post_id = p.id
+                ) AS tag_labels,
+                (
+                  SELECT STRING_AGG(t.slug, '|' ORDER BY t.sort_order, t.label)
+                    FROM blog_post_tags pt
+                    JOIN blog_tags t ON t.id = pt.tag_id
+                   WHERE pt.post_id = p.id
+                ) AS tag_slugs
            FROM blog_posts p
            LEFT JOIN users u ON u.id = p.author_id
           WHERE p.published_at IS NOT NULL
@@ -53,6 +93,13 @@ async function fetchPosts(
   } catch {
     return { rows: [], total: 0 };
   }
+}
+
+function tagPairs(p: PostRow): { slug: string; label: string }[] {
+  if (!p.tag_labels || !p.tag_slugs) return [];
+  const labels = p.tag_labels.split("|");
+  const slugs = p.tag_slugs.split("|");
+  return slugs.map((slug, i) => ({ slug, label: labels[i] ?? slug }));
 }
 
 function authorLabel(p: PostRow): string {
@@ -102,7 +149,10 @@ export default async function BlogIndexPage({
 }) {
   const { page: pageRaw } = await searchParams;
   const page = Math.max(1, Number.parseInt(pageRaw ?? "1", 10) || 1);
-  const { rows, total } = await fetchPosts(page);
+  const [{ rows, total }, tags] = await Promise.all([
+    fetchPosts(page),
+    fetchTags(),
+  ]);
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -124,13 +174,47 @@ export default async function BlogIndexPage({
         <p
           style={{
             color: "var(--ink-3)",
-            margin: "0 0 var(--s-7)",
+            margin: "0 0 var(--s-5)",
             maxWidth: 60 + "ch",
           }}
         >
           Buying guides, range tests, and ownership advice — written for
           riders kicking the tires on a used bike.
         </p>
+
+        {tags.length > 0 && (
+          <nav
+            aria-label="Tags"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 8,
+              marginBottom: "var(--s-7)",
+            }}
+          >
+            {tags.map((t) => (
+              <Link
+                key={t.slug}
+                href={`/blog/tag/${t.slug}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 12px",
+                  border: "1px solid var(--hairline)",
+                  borderRadius: 999,
+                  background: "#fff",
+                  color: "var(--ink-2)",
+                  fontSize: "var(--t-body-s)",
+                  textDecoration: "none",
+                }}
+              >
+                {t.label}
+                <span style={{ color: "var(--ink-4)" }}>{t.n}</span>
+              </Link>
+            ))}
+          </nav>
+        )}
 
         {rows.length === 0 ? (
           <div className="empty-state">
@@ -212,6 +296,38 @@ export default async function BlogIndexPage({
                       {p.excerpt}
                     </p>
                   )}
+                  {(() => {
+                    const pairs = tagPairs(p);
+                    if (pairs.length === 0) return null;
+                    return (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 6,
+                          marginTop: "var(--s-3)",
+                        }}
+                      >
+                        {pairs.map((t) => (
+                          <Link
+                            key={t.slug}
+                            href={`/blog/tag/${t.slug}`}
+                            style={{
+                              display: "inline-block",
+                              padding: "2px 10px",
+                              borderRadius: 999,
+                              background: "var(--surface-sunken)",
+                              color: "var(--ink-3)",
+                              fontSize: 12,
+                              textDecoration: "none",
+                            }}
+                          >
+                            {t.label}
+                          </Link>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <p style={{ marginTop: "var(--s-3)", marginBottom: 0 }}>
                     <Link
                       href={`/blog/${p.slug}`}

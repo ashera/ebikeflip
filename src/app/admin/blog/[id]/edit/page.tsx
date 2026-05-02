@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import {
   clearBlogHero,
   deleteBlogPost,
+  setBlogPostTags,
   setBlogPublishedAt,
   toggleBlogPublished,
   updateBlogPost,
@@ -78,21 +79,32 @@ export default async function EditBlogPostPage({
 
   if (!/^\d+$/.test(id)) notFound();
 
-  const r = await query<PostRow>(
-    `SELECT id::text,
-            slug,
-            title,
-            excerpt,
-            body_md,
-            hero_image_id::text,
-            published_at::text,
-            created_at::text,
-            updated_at::text
-       FROM blog_posts WHERE id = $1::bigint LIMIT 1`,
-    [id],
-  );
-  const post = r.rows[0];
+  const [postRes, tagsRes, assignedRes] = await Promise.all([
+    query<PostRow>(
+      `SELECT id::text,
+              slug,
+              title,
+              excerpt,
+              body_md,
+              hero_image_id::text,
+              published_at::text,
+              created_at::text,
+              updated_at::text
+         FROM blog_posts WHERE id = $1::bigint LIMIT 1`,
+      [id],
+    ),
+    query<{ id: string; label: string }>(
+      `SELECT id::text, label FROM blog_tags ORDER BY sort_order, label`,
+    ),
+    query<{ tag_id: string }>(
+      `SELECT tag_id::text FROM blog_post_tags WHERE post_id = $1::bigint`,
+      [id],
+    ),
+  ]);
+  const post = postRes.rows[0];
   if (!post) notFound();
+  const allTags = tagsRes.rows;
+  const assigned = new Set(assignedRes.rows.map((r) => r.tag_id));
 
   const isPublished = !!post.published_at;
   const isScheduled =
@@ -316,6 +328,71 @@ export default async function EditBlogPostPage({
             Save changes
           </Button>
         </div>
+      </form>
+
+      <form
+        action={setBlogPostTags}
+        style={{ marginTop: "var(--s-5)" }}
+      >
+        <input type="hidden" name="postId" value={post.id} />
+        <section className="form-card">
+          <h2 className="card-heading">Tags</h2>
+          <p className="card-sub">
+            Pick a few — they group related posts and create extra
+            indexable landing pages at /blog/tag/[slug].{" "}
+            <Link href="/admin/blog/tags">Manage tag list</Link>.
+          </p>
+          {allTags.length === 0 ? (
+            <p style={{ color: "var(--ink-3)", margin: 0 }}>
+              No tags exist yet — add some in <Link href="/admin/blog/tags">Manage tags</Link> first.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "var(--s-2)",
+              }}
+            >
+              {allTags.map((t) => (
+                <label
+                  key={t.id}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 12px",
+                    border: "1px solid var(--hairline)",
+                    borderRadius: 999,
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontSize: "var(--t-body-s)",
+                    color: "var(--ink-2)",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    name="tag_ids"
+                    value={t.id}
+                    defaultChecked={assigned.has(t.id)}
+                  />
+                  {t.label}
+                </label>
+              ))}
+            </div>
+          )}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              marginTop: "var(--s-3)",
+            }}
+          >
+            <Button type="submit" variant="dark">
+              Save tags
+            </Button>
+          </div>
+        </section>
       </form>
 
       {post.hero_image_id && (

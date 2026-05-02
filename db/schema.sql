@@ -586,6 +586,23 @@ ALTER TABLE blog_posts
   ADD COLUMN IF NOT EXISTS hero_image_id BIGINT
     REFERENCES blog_images(id) ON DELETE SET NULL;
 
+CREATE TABLE IF NOT EXISTS blog_tags (
+  id          BIGSERIAL    PRIMARY KEY,
+  slug        TEXT         UNIQUE NOT NULL,
+  label       TEXT         NOT NULL,
+  sort_order  INTEGER      NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS blog_post_tags (
+  post_id    BIGINT NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
+  tag_id     BIGINT NOT NULL REFERENCES blog_tags(id)  ON DELETE CASCADE,
+  PRIMARY KEY (post_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS blog_post_tags_tag_idx
+  ON blog_post_tags (tag_id, post_id);
+
 -- Backfill existing accounts as verified — pre-rollout users shouldn't be
 -- nagged after the fact.
 UPDATE users SET email_verified_at = COALESCE(email_verified_at, created_at);

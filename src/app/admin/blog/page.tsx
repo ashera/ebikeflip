@@ -58,9 +58,18 @@ export default async function AdminBlogIndexPage() {
         </p>
       </header>
 
-      <div style={{ marginBottom: "var(--s-5)" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--s-3)",
+          marginBottom: "var(--s-5)",
+        }}
+      >
         <ButtonLink href="/admin/blog/new" variant="primary" icon="plus">
           New post
+        </ButtonLink>
+        <ButtonLink href="/admin/blog/tags" variant="ghost">
+          Manage tags
         </ButtonLink>
       </div>
 

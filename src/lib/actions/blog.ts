@@ -224,6 +224,80 @@ async function maybeUploadHero(
   });
 }
 
+function getTagIds(formData: FormData): string[] {
+  return formData
+    .getAll("tag_ids")
+    .map((v) => String(v).trim())
+    .filter((s) => /^\d+$/.test(s));
+}
+
+async function syncPostTags(
+  postId: string,
+  tagIds: string[],
+): Promise<void> {
+  await withTransaction(async (client) => {
+    await client.query(
+      `DELETE FROM blog_post_tags WHERE post_id = $1::bigint`,
+      [postId],
+    );
+    if (tagIds.length === 0) return;
+    const placeholders = tagIds.map((_, i) => `($1::bigint, $${i + 2}::bigint)`);
+    await client.query(
+      `INSERT INTO blog_post_tags (post_id, tag_id)
+       VALUES ${placeholders.join(", ")}`,
+      [postId, ...tagIds],
+    );
+  });
+}
+
+export async function setBlogPostTags(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("postId") ?? "");
+  if (!/^\d+$/.test(id)) redirect("/admin/blog");
+
+  await syncPostTags(id, getTagIds(formData));
+
+  const r = await query<{ slug: string }>(
+    `SELECT slug FROM blog_posts WHERE id = $1::bigint LIMIT 1`,
+    [id],
+  );
+  const slug = r.rows[0]?.slug;
+
+  revalidatePath("/blog");
+  if (slug) revalidatePath(`/blog/${slug}`);
+  revalidatePath(`/admin/blog/${id}/edit`);
+  redirect(`/admin/blog/${id}/edit?saved=1`);
+}
+
+export async function createBlogTag(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const label = String(formData.get("label") ?? "").trim();
+  if (!label) redirect("/admin/blog/tags?error=invalid-label");
+  const slug = slugify(label) || `tag-${Date.now()}`;
+
+  await query(
+    `INSERT INTO blog_tags (slug, label) VALUES ($1, $2)
+     ON CONFLICT (slug) DO NOTHING`,
+    [slug, label],
+  );
+
+  revalidatePath("/admin/blog/tags");
+  revalidatePath("/blog");
+  redirect("/admin/blog/tags?saved=1");
+}
+
+export async function deleteBlogTag(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = String(formData.get("tagId") ?? "");
+  if (!/^\d+$/.test(id)) redirect("/admin/blog/tags");
+
+  await query(`DELETE FROM blog_tags WHERE id = $1::bigint`, [id]);
+
+  revalidatePath("/admin/blog/tags");
+  revalidatePath("/blog");
+  redirect("/admin/blog/tags?saved=1");
+}
+
 export async function clearBlogHero(formData: FormData): Promise<void> {
   await requireAdmin();
   const id = String(formData.get("postId") ?? "");

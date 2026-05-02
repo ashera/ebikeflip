@@ -34,5 +34,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticEntries, ...postEntries];
+  let tagSlugs: { slug: string }[] = [];
+  try {
+    const r = await query<{ slug: string }>(
+      `SELECT DISTINCT t.slug
+         FROM blog_tags t
+         JOIN blog_post_tags pt ON pt.tag_id = t.id
+         JOIN blog_posts p ON p.id = pt.post_id
+        WHERE p.published_at IS NOT NULL AND p.published_at <= NOW()`,
+    );
+    tagSlugs = r.rows;
+  } catch {
+    // sitemap should still serve even if DB hiccups
+  }
+
+  const tagEntries: MetadataRoute.Sitemap = tagSlugs.map((t) => ({
+    url: `${baseUrl}/blog/tag/${t.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.5,
+  }));
+
+  return [...staticEntries, ...postEntries, ...tagEntries];
 }
