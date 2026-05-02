@@ -160,6 +160,9 @@ export default async function BlogBuilderListPage({
         <ButtonLink href="/admin/blog/builder/clusters" variant="ghost">
           View clusters
         </ButtonLink>
+        <ButtonLink href="/admin/blog/builder/references" variant="ghost">
+          References
+        </ButtonLink>
       </div>
 
       <form
