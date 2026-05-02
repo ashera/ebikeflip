@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
 import {
   deleteBlogKeyword,
+  generateClusterFromKeyword,
   updateBlogKeyword,
 } from "@/lib/actions/blog-builder";
 import { Button, Field, Input, Textarea } from "../../../../_components/ui";
@@ -13,6 +14,13 @@ export const dynamic = "force-dynamic";
 const ERRORS: Record<string, string> = {
   "invalid-phrase": "A phrase is required.",
   duplicate: "Another keyword already uses that phrase.",
+  "no-key":
+    "ANTHROPIC_API_KEY isn't set on the server — add it and redeploy to use Generate cluster.",
+  "claude-error":
+    "Claude returned an error. Check server logs for details and try again.",
+  "bad-output":
+    "Claude returned an unparseable response. Try regenerating.",
+  "missing-root": "That keyword no longer exists.",
 };
 
 const INTENTS = [
@@ -72,23 +80,47 @@ export default async function EditKeywordPage({
 
   if (!/^\d+$/.test(id)) notFound();
 
-  const r = await query<KeywordRow>(
-    `SELECT id::text,
-            phrase,
-            intent,
-            search_volume,
-            difficulty,
-            notes,
-            status,
-            created_at::text,
-            updated_at::text
-       FROM blog_keywords
-      WHERE id = $1::bigint
-      LIMIT 1`,
-    [id],
-  );
-  const k = r.rows[0];
+  const [keywordRes, clustersRes] = await Promise.all([
+    query<KeywordRow>(
+      `SELECT id::text,
+              phrase,
+              intent,
+              search_volume,
+              difficulty,
+              notes,
+              status,
+              created_at::text,
+              updated_at::text
+         FROM blog_keywords
+        WHERE id = $1::bigint
+        LIMIT 1`,
+      [id],
+    ),
+    query<{
+      id: string;
+      name: string;
+      intent: string | null;
+      is_primary: boolean;
+      member_count: string;
+      created_at: string;
+    }>(
+      `SELECT c.id::text,
+              c.name,
+              c.intent,
+              kc.is_primary,
+              (SELECT COUNT(*)::text FROM blog_keyword_clusters
+                WHERE cluster_id = c.id) AS member_count,
+              c.created_at::text
+         FROM blog_clusters c
+         JOIN blog_keyword_clusters kc ON kc.cluster_id = c.id
+        WHERE kc.keyword_id = $1::bigint
+        ORDER BY c.created_at DESC`,
+      [id],
+    ),
+  ]);
+  const k = keywordRes.rows[0];
   if (!k) notFound();
+  const clusters = clustersRes.rows;
 
   return (
     <div className="page admin-page" style={{ maxWidth: 720 }}>
@@ -115,6 +147,105 @@ export default async function EditKeywordPage({
           {errorMessage}
         </p>
       )}
+
+      <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
+        <h2 className="card-heading">Cluster generation</h2>
+        <p className="card-sub">
+          Ask Claude to fan this root keyword out into a cluster of related
+          queries that share the same search intent. The new keywords are
+          added to the bank and linked here as a cluster.
+        </p>
+
+        {clusters.length > 0 && (
+          <div style={{ marginBottom: "var(--s-4)" }}>
+            <p
+              style={{
+                fontSize: 12,
+                fontFamily: "var(--font-mono)",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: "var(--ink-3)",
+                margin: "0 0 var(--s-2)",
+              }}
+            >
+              Clusters this keyword belongs to
+            </p>
+            <ul
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              {clusters.map((c) => (
+                <li
+                  key={c.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "8px 12px",
+                    background: "var(--surface-sunken)",
+                    border: "1px solid var(--hairline)",
+                    borderRadius: 8,
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{ fontWeight: 600, color: "var(--ink-1)" }}
+                    >
+                      {c.name}
+                      {c.is_primary && (
+                        <span
+                          className="users-tag --admin"
+                          style={{ marginLeft: 8 }}
+                        >
+                          Primary
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                      {c.intent ?? "no intent"} · {c.member_count} keywords ·{" "}
+                      {formatDate(c.created_at)}
+                    </div>
+                  </div>
+                  <Link
+                    href={`/admin/blog/builder/cluster/${c.id}`}
+                    style={{
+                      fontWeight: 600,
+                      color: "var(--ink-1)",
+                      fontSize: "var(--t-body-s)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    Open →
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <form action={generateClusterFromKeyword}>
+          <input type="hidden" name="keywordId" value={k.id} />
+          <Button type="submit" variant={clusters.length > 0 ? "ghost" : "primary"}>
+            {clusters.length > 0 ? "Regenerate cluster" : "Generate cluster"}
+          </Button>
+        </form>
+        <p
+          style={{
+            color: "var(--ink-3)",
+            fontSize: 12,
+            margin: "var(--s-3) 0 0",
+          }}
+        >
+          Generation typically takes 5–15 seconds. The page will reload to
+          the cluster review when it&rsquo;s done.
+        </p>
+      </section>
 
       <form
         action={updateBlogKeyword}

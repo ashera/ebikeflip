@@ -621,6 +621,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS blog_keywords_phrase_idx
 CREATE INDEX IF NOT EXISTS blog_keywords_status_idx
   ON blog_keywords (status, created_at DESC);
 
+-- Blog Builder: clusters group keywords sharing the same search intent.
+-- One intent → one cluster → one page. Cluster name defaults to the
+-- primary (highest-volume / root) keyword.
+CREATE TABLE IF NOT EXISTS blog_clusters (
+  id                  BIGSERIAL    PRIMARY KEY,
+  name                TEXT         NOT NULL,
+  intent              TEXT,
+  primary_keyword_id  BIGINT       REFERENCES blog_keywords(id) ON DELETE SET NULL,
+  generated_post_id   BIGINT       REFERENCES blog_posts(id)    ON DELETE SET NULL,
+  model_used          TEXT,
+  created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS blog_clusters_primary_idx
+  ON blog_clusters (primary_keyword_id);
+
+CREATE TABLE IF NOT EXISTS blog_keyword_clusters (
+  cluster_id  BIGINT  NOT NULL REFERENCES blog_clusters(id) ON DELETE CASCADE,
+  keyword_id  BIGINT  NOT NULL REFERENCES blog_keywords(id) ON DELETE CASCADE,
+  is_primary  BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (cluster_id, keyword_id)
+);
+
+CREATE INDEX IF NOT EXISTS blog_keyword_clusters_kw_idx
+  ON blog_keyword_clusters (keyword_id);
+
 -- Backfill existing accounts as verified — pre-rollout users shouldn't be
 -- nagged after the fact.
 UPDATE users SET email_verified_at = COALESCE(email_verified_at, created_at);

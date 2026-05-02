@@ -157,6 +157,9 @@ export default async function BlogBuilderListPage({
         <ButtonLink href="/admin/blog/builder/new" variant="primary" icon="plus">
           Add keywords
         </ButtonLink>
+        <ButtonLink href="/admin/blog/builder/clusters" variant="ghost">
+          View clusters
+        </ButtonLink>
       </div>
 
       <form
