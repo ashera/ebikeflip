@@ -3,15 +3,10 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { query } from "@/lib/db";
 import {
-  clearAllImages,
-  clearImageSlot,
   clearSerpAnalysis,
   deleteBlogKeyword,
-  findInitialImages,
   generateClusterFromKeyword,
-  refreshImageSlot,
   runSerpAnalysis,
-  toggleImageInclude,
   updateBlogKeyword,
 } from "@/lib/actions/blog-builder";
 import { Button, Field, Input, Textarea } from "../../../../_components/ui";
@@ -28,12 +23,6 @@ const ERRORS: Record<string, string> = {
   "bad-output":
     "Claude returned an unparseable response. Try again.",
   "missing-root": "That keyword no longer exists.",
-  "no-pexels-key":
-    "PEXELS_API_KEY isn't set on the server — add it and redeploy to fetch images.",
-  "pexels-error":
-    "Pexels returned an error. Check server logs and try again.",
-  "no-pexels-results":
-    "Pexels has no more landscape photos for this phrase. Try a related keyword.",
 };
 
 const INTENTS = [
@@ -86,24 +75,6 @@ type SerpAnalysis = {
   format_rationale?: string;
 };
 
-type ImageRow = {
-  id: string;
-  slot: number;
-  include_in_post: boolean;
-  source: string;
-  source_id: string;
-  url_large: string;
-  url_original: string | null;
-  source_url: string | null;
-  photographer: string | null;
-  photographer_url: string | null;
-  alt: string | null;
-  page_offset: number;
-  updated_at: string;
-};
-
-const IMAGE_SLOTS = 5;
-
 function formatDate(s: string | null): string {
   if (!s) return "—";
   try {
@@ -133,7 +104,7 @@ export default async function EditKeywordPage({
 
   if (!/^\d+$/.test(id)) notFound();
 
-  const [keywordRes, clustersRes, imageRes] = await Promise.all([
+  const [keywordRes, clustersRes] = await Promise.all([
     query<KeywordRow>(
       `SELECT id::text,
               phrase,
@@ -172,38 +143,10 @@ export default async function EditKeywordPage({
         ORDER BY c.created_at DESC`,
       [id],
     ),
-    query<ImageRow>(
-      `SELECT id::text,
-              slot,
-              include_in_post,
-              source,
-              source_id,
-              url_large,
-              url_original,
-              source_url,
-              photographer,
-              photographer_url,
-              alt,
-              page_offset,
-              updated_at::text
-         FROM blog_keyword_images
-        WHERE keyword_id = $1::bigint
-        ORDER BY slot`,
-      [id],
-    ),
   ]);
   const k = keywordRes.rows[0];
   if (!k) notFound();
   const clusters = clustersRes.rows;
-  const imagesById = new Map<number, ImageRow>(
-    imageRes.rows.map((r) => [r.slot, r]),
-  );
-  const slots: Array<ImageRow | null> = Array.from(
-    { length: IMAGE_SLOTS },
-    (_, i) => imagesById.get(i) ?? null,
-  );
-  const hasAnyImage = slots.some((s) => s != null);
-  const includedCount = slots.filter((s) => s?.include_in_post).length;
   const serp = k.serp_analysis_json;
 
   return (
@@ -495,260 +438,6 @@ export default async function EditKeywordPage({
             topics worth covering.
           </p>
         )}
-      </section>
-
-      <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "var(--s-3)",
-            flexWrap: "wrap",
-            alignItems: "flex-start",
-            marginBottom: "var(--s-4)",
-          }}
-        >
-          <div>
-            <h2 className="card-heading" style={{ margin: 0 }}>
-              Hero images ({includedCount}/{IMAGE_SLOTS} included)
-            </h2>
-            <p className="card-sub" style={{ marginTop: 4 }}>
-              Up to {IMAGE_SLOTS} Pexels candidates. Refresh each slot
-              independently and toggle <strong>Include</strong> on the
-              ones you want the post to use.
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <form action={findInitialImages}>
-              <input type="hidden" name="keywordId" value={k.id} />
-              <Button type="submit" variant={hasAnyImage ? "ghost" : "primary"}>
-                {hasAnyImage ? "Re-fill empty slots" : "Find images"}
-              </Button>
-            </form>
-            {hasAnyImage && (
-              <form action={clearAllImages}>
-                <input type="hidden" name="keywordId" value={k.id} />
-                <Button type="submit" variant="ghost">
-                  Clear all
-                </Button>
-              </form>
-            )}
-          </div>
-        </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: "var(--s-3)",
-          }}
-        >
-          {slots.map((img, slot) => (
-            <div
-              key={slot}
-              style={{
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-                padding: "var(--s-3)",
-                background: img?.include_in_post
-                  ? "var(--volt-50)"
-                  : "var(--surface-sunken)",
-                border: `1px solid ${
-                  img?.include_in_post
-                    ? "var(--volt-300)"
-                    : "var(--hairline)"
-                }`,
-                borderRadius: 10,
-                opacity: img && !img.include_in_post ? 0.65 : 1,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  fontSize: 11,
-                  fontFamily: "var(--font-mono)",
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: "var(--ink-3)",
-                }}
-              >
-                <span>Slot {slot + 1}</span>
-                {img?.include_in_post && (
-                  <span
-                    className="users-tag --ok"
-                    style={{ fontSize: 10 }}
-                  >
-                    Included
-                  </span>
-                )}
-              </div>
-
-              {img ? (
-                <>
-                  <img
-                    src={img.url_large}
-                    alt={img.alt ?? k.phrase}
-                    style={{
-                      width: "100%",
-                      aspectRatio: "16 / 10",
-                      objectFit: "cover",
-                      borderRadius: 8,
-                      background: "#fff",
-                      display: "block",
-                    }}
-                  />
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "var(--ink-3)",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    by{" "}
-                    {img.photographer_url ? (
-                      <a
-                        href={img.photographer_url}
-                        target="_blank"
-                        rel="noopener"
-                        style={{ color: "var(--ink-2)" }}
-                      >
-                        {img.photographer}
-                      </a>
-                    ) : (
-                      img.photographer
-                    )}{" "}
-                    ·{" "}
-                    {img.source_url ? (
-                      <a
-                        href={img.source_url}
-                        target="_blank"
-                        rel="noopener"
-                        style={{ color: "var(--ink-2)" }}
-                      >
-                        Pexels
-                      </a>
-                    ) : (
-                      "Pexels"
-                    )}
-                  </div>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 6,
-                      flexWrap: "wrap",
-                      marginTop: 4,
-                    }}
-                  >
-                    <form action={toggleImageInclude}>
-                      <input type="hidden" name="keywordId" value={k.id} />
-                      <input type="hidden" name="slot" value={slot} />
-                      <button
-                        type="submit"
-                        style={{
-                          padding: "4px 10px",
-                          fontSize: 12,
-                          background: img.include_in_post
-                            ? "#fff"
-                            : "var(--ink-1)",
-                          color: img.include_in_post
-                            ? "var(--ink-1)"
-                            : "#fff",
-                          border: "1px solid var(--ink-1)",
-                          borderRadius: 999,
-                          cursor: "pointer",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {img.include_in_post ? "Exclude" : "Include"}
-                      </button>
-                    </form>
-                    <form action={refreshImageSlot}>
-                      <input type="hidden" name="keywordId" value={k.id} />
-                      <input type="hidden" name="slot" value={slot} />
-                      <button
-                        type="submit"
-                        style={{
-                          padding: "4px 10px",
-                          fontSize: 12,
-                          background: "transparent",
-                          color: "var(--ink-2)",
-                          border: "1px solid var(--hairline)",
-                          borderRadius: 999,
-                          cursor: "pointer",
-                          fontWeight: 600,
-                        }}
-                      >
-                        Refresh
-                      </button>
-                    </form>
-                    <form action={clearImageSlot}>
-                      <input type="hidden" name="keywordId" value={k.id} />
-                      <input type="hidden" name="slot" value={slot} />
-                      <button
-                        type="submit"
-                        title="Empty this slot"
-                        style={{
-                          padding: "4px 10px",
-                          fontSize: 12,
-                          background: "transparent",
-                          color: "var(--ink-3)",
-                          border: "1px solid var(--hairline)",
-                          borderRadius: 999,
-                          cursor: "pointer",
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </form>
-                  </div>
-                </>
-              ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    aspectRatio: "16 / 10",
-                    border: "1px dashed var(--hairline)",
-                    borderRadius: 8,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "var(--ink-3)",
-                    fontSize: 12,
-                  }}
-                >
-                  Empty
-                </div>
-              )}
-
-              {!img && (
-                <form action={refreshImageSlot}>
-                  <input type="hidden" name="keywordId" value={k.id} />
-                  <input type="hidden" name="slot" value={slot} />
-                  <button
-                    type="submit"
-                    style={{
-                      width: "100%",
-                      padding: "6px 10px",
-                      fontSize: 12,
-                      background: "transparent",
-                      color: "var(--ink-2)",
-                      border: "1px solid var(--hairline)",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Find a photo
-                  </button>
-                </form>
-              )}
-            </div>
-          ))}
-        </div>
       </section>
 
       <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>

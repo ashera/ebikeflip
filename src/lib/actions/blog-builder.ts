@@ -548,17 +548,26 @@ export async function clearSerpAnalysis(formData: FormData): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Pexels hero images — up to 5 slots per keyword, each refreshable.
+// Pexels hero images — up to 5 slots per cluster, each refreshable.
+// Search query comes from the cluster's primary keyword phrase, with the
+// cluster name as a fallback if no primary is set.
 // ---------------------------------------------------------------------------
 
 const IMAGE_SLOTS = 5;
 
-async function loadKeywordPhrase(keywordId: string): Promise<string | null> {
-  const r = await query<{ phrase: string }>(
-    `SELECT phrase FROM blog_keywords WHERE id = $1::bigint LIMIT 1`,
-    [keywordId],
+async function loadClusterSearchPhrase(
+  clusterId: string,
+): Promise<string | null> {
+  const r = await query<{ phrase: string | null; name: string }>(
+    `SELECT k.phrase AS phrase, c.name AS name
+       FROM blog_clusters c
+  LEFT JOIN blog_keywords k ON k.id = c.primary_keyword_id
+      WHERE c.id = $1::bigint LIMIT 1`,
+    [clusterId],
   );
-  return r.rows[0]?.phrase ?? null;
+  const row = r.rows[0];
+  if (!row) return null;
+  return row.phrase ?? row.name ?? null;
 }
 
 /** Fetch a fresh Pexels page and return the photos. Pages out clean errors. */
@@ -599,23 +608,23 @@ type PexelsPick = {
 };
 
 async function upsertImageSlot(
-  keywordId: string,
+  clusterId: string,
   slot: number,
   page: number,
   pick: PexelsPick,
   phrase: string,
 ): Promise<void> {
   await query(
-    `INSERT INTO blog_keyword_images
-       (keyword_id, slot, source, source_id, url_large, url_original,
+    `INSERT INTO blog_cluster_images
+       (cluster_id, slot, source, source_id, url_large, url_original,
         source_url, photographer, photographer_url, alt, page_offset,
         include_in_post)
      VALUES ($1::bigint, $2::int, 'pexels', $3, $4, $5, $6, $7, $8, $9, $10,
              COALESCE(
-               (SELECT include_in_post FROM blog_keyword_images
-                  WHERE keyword_id = $1::bigint AND slot = $2::int),
+               (SELECT include_in_post FROM blog_cluster_images
+                  WHERE cluster_id = $1::bigint AND slot = $2::int),
                TRUE))
-     ON CONFLICT (keyword_id, slot) DO UPDATE
+     ON CONFLICT (cluster_id, slot) DO UPDATE
        SET source = EXCLUDED.source,
            source_id = EXCLUDED.source_id,
            url_large = EXCLUDED.url_large,
@@ -627,7 +636,7 @@ async function upsertImageSlot(
            page_offset = EXCLUDED.page_offset,
            updated_at = NOW()`,
     [
-      keywordId,
+      clusterId,
       slot,
       String(pick.id),
       pick.src.large2x ?? pick.src.large ?? pick.src.original,
@@ -645,45 +654,47 @@ export async function findInitialImages(
   formData: FormData,
 ): Promise<void> {
   await requireAdmin();
-  const keywordId = String(formData.get("keywordId") ?? "");
-  if (!/^\d+$/.test(keywordId)) redirect("/admin/blog/builder");
+  const clusterId = String(formData.get("clusterId") ?? "");
+  if (!/^\d+$/.test(clusterId)) redirect("/admin/blog/builder");
 
-  const phrase = await loadKeywordPhrase(keywordId);
-  if (!phrase) redirect(`/admin/blog/builder/${keywordId}?error=missing-root`);
+  const phrase = await loadClusterSearchPhrase(clusterId);
+  if (!phrase)
+    redirect(`/admin/blog/builder/cluster/${clusterId}?error=missing-root`);
 
   const photos = await fetchPexelsPage(
     phrase,
     1,
-    `/admin/blog/builder/${keywordId}`,
+    `/admin/blog/builder/cluster/${clusterId}`,
   );
   for (let i = 0; i < IMAGE_SLOTS && i < photos.length; i++) {
-    await upsertImageSlot(keywordId, i, 1, photos[i], phrase);
+    await upsertImageSlot(clusterId, i, 1, photos[i], phrase);
   }
 
-  revalidatePath(`/admin/blog/builder/${keywordId}`);
-  redirect(`/admin/blog/builder/${keywordId}?saved=1`);
+  revalidatePath(`/admin/blog/builder/cluster/${clusterId}`);
+  redirect(`/admin/blog/builder/cluster/${clusterId}?saved=1`);
 }
 
 export async function refreshImageSlot(formData: FormData): Promise<void> {
   await requireAdmin();
-  const keywordId = String(formData.get("keywordId") ?? "");
+  const clusterId = String(formData.get("clusterId") ?? "");
   const slotRaw = String(formData.get("slot") ?? "");
-  if (!/^\d+$/.test(keywordId) || !/^\d+$/.test(slotRaw))
+  if (!/^\d+$/.test(clusterId) || !/^\d+$/.test(slotRaw))
     redirect("/admin/blog/builder");
   const slot = Math.max(0, Math.min(IMAGE_SLOTS - 1, Number(slotRaw)));
 
-  const phrase = await loadKeywordPhrase(keywordId);
-  if (!phrase) redirect(`/admin/blog/builder/${keywordId}?error=missing-root`);
+  const phrase = await loadClusterSearchPhrase(clusterId);
+  if (!phrase)
+    redirect(`/admin/blog/builder/cluster/${clusterId}?error=missing-root`);
 
-  // Skip every source_id already in any slot for this keyword. Use the
+  // Skip every source_id already in any slot for this cluster. Use the
   // highest existing page_offset + 1 so each refresh genuinely advances.
   const existing = await query<{
     source_id: string;
     page_offset: number;
   }>(
-    `SELECT source_id, page_offset FROM blog_keyword_images
-      WHERE keyword_id = $1::bigint`,
-    [keywordId],
+    `SELECT source_id, page_offset FROM blog_cluster_images
+      WHERE cluster_id = $1::bigint`,
+    [clusterId],
   );
   const usedIds = new Set(existing.rows.map((r) => r.source_id));
   const maxOffset = existing.rows.reduce(
@@ -699,74 +710,74 @@ export async function refreshImageSlot(formData: FormData): Promise<void> {
     const photos = await fetchPexelsPage(
       phrase,
       page,
-      `/admin/blog/builder/${keywordId}`,
+      `/admin/blog/builder/cluster/${clusterId}`,
     );
     pick = photos.find((p) => !usedIds.has(String(p.id))) ?? null;
     if (pick) pageUsed = page;
   }
   if (!pick) {
     redirect(
-      `/admin/blog/builder/${keywordId}?error=no-pexels-results`,
+      `/admin/blog/builder/cluster/${clusterId}?error=no-pexels-results`,
     );
   }
 
-  await upsertImageSlot(keywordId, slot, pageUsed, pick, phrase);
+  await upsertImageSlot(clusterId, slot, pageUsed, pick, phrase);
 
-  revalidatePath(`/admin/blog/builder/${keywordId}`);
-  redirect(`/admin/blog/builder/${keywordId}?saved=1`);
+  revalidatePath(`/admin/blog/builder/cluster/${clusterId}`);
+  redirect(`/admin/blog/builder/cluster/${clusterId}?saved=1`);
 }
 
 export async function toggleImageInclude(
   formData: FormData,
 ): Promise<void> {
   await requireAdmin();
-  const keywordId = String(formData.get("keywordId") ?? "");
+  const clusterId = String(formData.get("clusterId") ?? "");
   const slotRaw = String(formData.get("slot") ?? "");
-  if (!/^\d+$/.test(keywordId) || !/^\d+$/.test(slotRaw))
+  if (!/^\d+$/.test(clusterId) || !/^\d+$/.test(slotRaw))
     redirect("/admin/blog/builder");
   const slot = Number(slotRaw);
 
   await query(
-    `UPDATE blog_keyword_images
+    `UPDATE blog_cluster_images
         SET include_in_post = NOT include_in_post,
             updated_at = NOW()
-      WHERE keyword_id = $1::bigint AND slot = $2::int`,
-    [keywordId, slot],
+      WHERE cluster_id = $1::bigint AND slot = $2::int`,
+    [clusterId, slot],
   );
 
-  revalidatePath(`/admin/blog/builder/${keywordId}`);
-  redirect(`/admin/blog/builder/${keywordId}?saved=1`);
+  revalidatePath(`/admin/blog/builder/cluster/${clusterId}`);
+  redirect(`/admin/blog/builder/cluster/${clusterId}?saved=1`);
 }
 
 export async function clearImageSlot(formData: FormData): Promise<void> {
   await requireAdmin();
-  const keywordId = String(formData.get("keywordId") ?? "");
+  const clusterId = String(formData.get("clusterId") ?? "");
   const slotRaw = String(formData.get("slot") ?? "");
-  if (!/^\d+$/.test(keywordId) || !/^\d+$/.test(slotRaw))
+  if (!/^\d+$/.test(clusterId) || !/^\d+$/.test(slotRaw))
     redirect("/admin/blog/builder");
   const slot = Number(slotRaw);
 
   await query(
-    `DELETE FROM blog_keyword_images
-      WHERE keyword_id = $1::bigint AND slot = $2::int`,
-    [keywordId, slot],
+    `DELETE FROM blog_cluster_images
+      WHERE cluster_id = $1::bigint AND slot = $2::int`,
+    [clusterId, slot],
   );
 
-  revalidatePath(`/admin/blog/builder/${keywordId}`);
-  redirect(`/admin/blog/builder/${keywordId}?saved=1`);
+  revalidatePath(`/admin/blog/builder/cluster/${clusterId}`);
+  redirect(`/admin/blog/builder/cluster/${clusterId}?saved=1`);
 }
 
 export async function clearAllImages(formData: FormData): Promise<void> {
   await requireAdmin();
-  const keywordId = String(formData.get("keywordId") ?? "");
-  if (!/^\d+$/.test(keywordId)) redirect("/admin/blog/builder");
+  const clusterId = String(formData.get("clusterId") ?? "");
+  if (!/^\d+$/.test(clusterId)) redirect("/admin/blog/builder");
 
   await query(
-    `DELETE FROM blog_keyword_images WHERE keyword_id = $1::bigint`,
-    [keywordId],
+    `DELETE FROM blog_cluster_images WHERE cluster_id = $1::bigint`,
+    [clusterId],
   );
 
-  revalidatePath(`/admin/blog/builder/${keywordId}`);
-  redirect(`/admin/blog/builder/${keywordId}?saved=1`);
+  revalidatePath(`/admin/blog/builder/cluster/${clusterId}`);
+  redirect(`/admin/blog/builder/cluster/${clusterId}?saved=1`);
 }
 
