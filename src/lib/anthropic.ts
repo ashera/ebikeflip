@@ -178,13 +178,87 @@ export function extractJson<T>(text: string): T | null {
         }
       }
     }
-    if (end === -1) continue;
-    const slice = src.slice(first, end + 1);
-    try {
-      return JSON.parse(slice) as T;
-    } catch {
-      continue;
+    // Build the candidate slice. If we never found a matching close
+    // brace, the response was almost certainly truncated by max_tokens —
+    // close any open string + any open braces and let the lenient parser
+    // try to salvage what came through.
+    let slice: string;
+    if (end === -1) {
+      slice = src.slice(first);
+      if (inStr) slice += '"';
+      for (let d = 0; d < depth; d++) slice += close;
+    } else {
+      slice = src.slice(first, end + 1);
     }
+
+    // Try strict parse first; fall back to a sanitized version that
+    // escapes literal control characters inside string values, which
+    // Claude sometimes emits in body_markdown even though it's invalid
+    // JSON.
+    const parsed =
+      tryParseJson<T>(slice) ?? tryParseJson<T>(sanitizeJsonControlChars(slice));
+    if (parsed !== null) return parsed;
   }
   return null;
+}
+
+function tryParseJson<T>(src: string): T | null {
+  try {
+    return JSON.parse(src) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Walk a JSON string and replace literal control characters that appear
+ * INSIDE string values with their escape sequences. Anything outside a
+ * string is left as-is so the structure stays intact.
+ */
+function sanitizeJsonControlChars(src: string): string {
+  let out = "";
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inStr) {
+      if (esc) {
+        out += ch;
+        esc = false;
+        continue;
+      }
+      if (ch === "\\") {
+        out += ch;
+        esc = true;
+        continue;
+      }
+      if (ch === '"') {
+        out += ch;
+        inStr = false;
+        continue;
+      }
+      if (ch === "\n") {
+        out += "\\n";
+        continue;
+      }
+      if (ch === "\r") {
+        out += "\\r";
+        continue;
+      }
+      if (ch === "\t") {
+        out += "\\t";
+        continue;
+      }
+      const code = ch.charCodeAt(0);
+      if (code < 0x20) {
+        out += `\\u${code.toString(16).padStart(4, "0")}`;
+        continue;
+      }
+      out += ch;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    out += ch;
+  }
+  return out;
 }
