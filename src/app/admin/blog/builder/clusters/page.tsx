@@ -12,7 +12,36 @@ type Row = {
   primary_phrase: string | null;
   created_at: string;
   generated_post_id: string | null;
+  serp_analyzed_at: string | null;
+  images_included: string;
 };
+
+function Check({ done, label }: { done: boolean; label: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "2px 8px",
+        fontSize: 11,
+        fontFamily: "var(--font-mono)",
+        textTransform: "uppercase",
+        letterSpacing: "0.06em",
+        borderRadius: 999,
+        border: `1px solid ${done ? "var(--volt-300)" : "var(--hairline)"}`,
+        background: done ? "var(--volt-50)" : "transparent",
+        color: done ? "var(--ink-1)" : "var(--ink-3)",
+        fontWeight: done ? 600 : 500,
+      }}
+    >
+      <span aria-hidden style={{ fontSize: 12, lineHeight: 1 }}>
+        {done ? "✓" : "○"}
+      </span>
+      {label}
+    </span>
+  );
+}
 
 function formatDate(s: string): string {
   try {
@@ -39,7 +68,11 @@ export default async function ClustersListPage() {
              WHERE kc.cluster_id = c.id AND kc.is_primary = TRUE
              LIMIT 1) AS primary_phrase,
             c.created_at::text,
-            c.generated_post_id::text
+            c.generated_post_id::text,
+            c.serp_analyzed_at::text,
+            (SELECT COUNT(*)::text FROM blog_cluster_images
+              WHERE cluster_id = c.id AND include_in_post = TRUE)
+                AS images_included
        FROM blog_clusters c
       ORDER BY c.created_at DESC
       LIMIT 200`,
@@ -100,6 +133,31 @@ export default async function ClustersListPage() {
                 </div>
                 <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
                   {c.primary_phrase ?? "—"} · {formatDate(c.created_at)}
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 6,
+                    marginTop: 6,
+                  }}
+                >
+                  <Check
+                    done={Boolean(c.serp_analyzed_at)}
+                    label="SERP"
+                  />
+                  <Check
+                    done={Number(c.images_included) > 0}
+                    label={
+                      Number(c.images_included) > 0
+                        ? `Images · ${c.images_included}`
+                        : "Images"
+                    }
+                  />
+                  <Check
+                    done={Boolean(c.generated_post_id)}
+                    label="Post"
+                  />
                 </div>
               </div>
               <span
