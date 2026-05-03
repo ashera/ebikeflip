@@ -10,6 +10,58 @@ import {
   WEB_FETCH_TOOL,
   WEB_SEARCH_TOOL,
 } from "@/lib/anthropic";
+
+// Structured-output tool for the post-generation call. We tell Claude to
+// invoke this tool instead of writing JSON in text — Anthropic returns
+// the input as a parsed object, sidestepping every malformed-JSON failure
+// (unescaped quotes inside body_markdown, control chars, truncation, etc).
+const SUBMIT_POST_TOOL = {
+  name: "submit_post",
+  description:
+    "Submit the generated blog post draft. Call this exactly once with the complete post.",
+  input_schema: {
+    type: "object",
+    required: ["title", "slug", "body_markdown"],
+    properties: {
+      title: { type: "string", description: "Post title" },
+      slug: {
+        type: "string",
+        description: "URL slug, kebab-case, no leading slash",
+      },
+      meta_description: {
+        type: "string",
+        description: "<= 160 chars",
+      },
+      tags: {
+        type: "array",
+        items: { type: "string" },
+      },
+      body_markdown: {
+        type: "string",
+        description: "Full post body in markdown. Do NOT embed image markdown — use image_placements instead.",
+      },
+      image_placements: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["slot", "after_heading"],
+          properties: {
+            slot: { type: "integer" },
+            after_heading: {
+              type: "string",
+              description: "Exact H2 heading text the image should follow",
+            },
+            caption: { type: "string" },
+            layout: {
+              type: "string",
+              enum: ["full", "right", "left"],
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
 import { searchPexels } from "@/lib/pexels";
 import {
   composePostSystemPrompt,
@@ -1131,10 +1183,13 @@ export async function generateBlogPostFromCluster(
   const result = await callClaude({
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
-    // 5000 fits a ~3000-word post with JSON wrapping and image placements;
-    // tier-1 ITPM is 10k and Anthropic reserves max_tokens against the
-    // limit up-front, so we keep this tight.
+    // 5000 fits a ~3000-word post with the tool-call wrapping; tier-1
+    // ITPM is 10k and Anthropic reserves max_tokens against the limit
+    // up-front, so we keep this tight.
     maxTokens: 5000,
+    tools: [SUBMIT_POST_TOOL],
+    // Force the model to call submit_post — no free-text fallback.
+    toolChoice: { type: "tool", name: "submit_post" },
   });
   if (!result.ok) {
     await recordGenAttempt(clusterId, "", result.error);
@@ -1146,17 +1201,23 @@ export async function generateBlogPostFromCluster(
     redirect(`/admin/blog/builder/cluster/${clusterId}?error=${code}`);
   }
 
-  const parsed = extractJson<GeneratedPostJson>(result.text);
+  const submitCall = result.toolUses.find((t) => t.name === "submit_post");
+  const parsed = (submitCall?.input ?? null) as GeneratedPostJson | null;
+  // Persist whatever Claude sent us (text + raw tool input as JSON) so
+  // we can inspect it on the cluster page if anything went sideways.
+  const captured = submitCall
+    ? `[tool_use submit_post]\n${JSON.stringify(submitCall.input, null, 2)}`
+    : result.text;
   if (!parsed || !parsed.title || !parsed.body_markdown) {
     await recordGenAttempt(
       clusterId,
-      result.text,
-      "extractJson returned null or missing required fields (title/body_markdown)",
+      captured,
+      "submit_post tool was not invoked, or required fields (title/body_markdown) were missing",
     );
     // eslint-disable-next-line no-console
     console.error(
-      "[post-gen] Could not parse post JSON",
-      result.text.slice(0, 500),
+      "[post-gen] submit_post tool not invoked or missing fields",
+      captured.slice(0, 500),
     );
     redirect(`/admin/blog/builder/cluster/${clusterId}?error=bad-output`);
   }
@@ -1236,7 +1297,7 @@ export async function generateBlogPostFromCluster(
     return id;
   });
 
-  await recordGenAttempt(clusterId, result.text, null);
+  await recordGenAttempt(clusterId, captured, null);
 
   revalidatePath(`/admin/blog/builder/cluster/${clusterId}`);
   revalidatePath(`/admin/blog/${postId}/edit`);

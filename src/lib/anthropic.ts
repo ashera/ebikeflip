@@ -23,16 +23,34 @@ export type Message = { role: "user" | "assistant"; content: string };
 
 export type Tool = Record<string, unknown>;
 
+export type ToolChoice =
+  | { type: "auto" }
+  | { type: "any" }
+  | { type: "tool"; name: string };
+
 export type CallOpts = {
   system: string;
   messages: Message[];
   model?: string;
   maxTokens?: number;
   tools?: Tool[];
+  toolChoice?: ToolChoice;
+};
+
+export type ToolUseBlock = {
+  id: string;
+  name: string;
+  input: unknown;
 };
 
 export type CallResult =
-  | { ok: true; text: string; model: string }
+  | {
+      ok: true;
+      text: string;
+      model: string;
+      toolUses: ToolUseBlock[];
+      raw: unknown;
+    }
   | { ok: false; error: string };
 
 /** Single-turn (or short multi-turn) call to the Anthropic Messages API. */
@@ -52,6 +70,9 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
     if (opts.tools && opts.tools.length > 0) {
       body.tools = opts.tools;
     }
+    if (opts.toolChoice) {
+      body.tool_choice = opts.toolChoice;
+    }
     const res = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -66,19 +87,35 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
       return { ok: false, error: `Anthropic ${res.status}: ${detail}` };
     }
     const json = (await res.json()) as {
-      content?: Array<{ type: string; text?: string }>;
+      content?: Array<{
+        type: string;
+        text?: string;
+        id?: string;
+        name?: string;
+        input?: unknown;
+      }>;
     };
+    const blocks = json.content ?? [];
     // Server-managed tools (web_search, web_fetch) emit non-text content
     // blocks (server_tool_use, web_search_tool_result, etc.) inline. We
-    // ignore those and just return the model's final text.
-    const text =
-      (json.content ?? [])
-        .filter((b) => b.type === "text")
-        .map((b) => b.text ?? "")
-        .join("")
-        .trim() ?? "";
-    if (!text) return { ok: false, error: "Empty response from Anthropic" };
-    return { ok: true, text, model };
+    // ignore those and just return the model's final text + any
+    // client-side tool_use blocks the caller asked for.
+    const text = blocks
+      .filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("")
+      .trim();
+    const toolUses: ToolUseBlock[] = blocks
+      .filter((b) => b.type === "tool_use" && b.id && b.name)
+      .map((b) => ({
+        id: b.id as string,
+        name: b.name as string,
+        input: b.input,
+      }));
+    if (!text && toolUses.length === 0) {
+      return { ok: false, error: "Empty response from Anthropic" };
+    }
+    return { ok: true, text, model, toolUses, raw: json };
   } catch (e) {
     return {
       ok: false,
