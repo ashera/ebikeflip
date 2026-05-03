@@ -3353,6 +3353,10 @@ textarea.input {
 .prose a { color: var(--ink-1); text-decoration: underline; text-underline-offset: 3px; }
 .prose a:hover { text-decoration-thickness: 2px; }
 .prose ul, .prose ol { padding-left: 1.4em; margin: 0; }
+.prose ul { list-style: disc outside; }
+.prose ol { list-style: decimal outside; }
+.prose ul ul { list-style: circle outside; }
+.prose ul ul ul { list-style: square outside; }
 .prose li + li { margin-top: 4px; }
 .prose blockquote {
   border-left: 3px solid var(--volt-300, #d4a017);
