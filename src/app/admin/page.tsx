@@ -29,6 +29,11 @@ const ADMIN_LINKS: Array<{ href: string; title: string; desc: string }> = [
     title: "Blog Management",
     desc: "Write articles to attract visitors and support SEO.",
   },
+  {
+    href: "/admin/database",
+    title: "Database Structure",
+    desc: "Tables, descriptions, and current row counts.",
+  },
 ];
 
 export default async function AdminHomePage() {
