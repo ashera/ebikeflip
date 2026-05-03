@@ -851,6 +851,8 @@ export async function clearAllImages(formData: FormData): Promise<void> {
 // to regenerate, delete the old post first (the FK is ON DELETE SET NULL).
 // ---------------------------------------------------------------------------
 
+type ImageLayout = "full" | "right" | "left";
+
 type GeneratedPostJson = {
   title?: string;
   slug?: string;
@@ -861,8 +863,23 @@ type GeneratedPostJson = {
     slot?: number;
     after_heading?: string;
     caption?: string;
+    layout?: string;
   }>;
 };
+
+function normalizeLayout(raw: unknown): ImageLayout {
+  if (raw === "full" || raw === "right" || raw === "left") return raw;
+  return "full";
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 function slugify(input: string): string {
   return input
@@ -908,17 +925,32 @@ async function fetchHeroBytes(
   }
 }
 
-/** Markdown block for one image: image, blank, italic caption with credit. */
-function imageMarkdown(img: InjectImage, caption?: string): string {
-  const altText = (caption || img.alt || "").trim();
-  const photog = img.photographer ?? "Pexels";
-  const link = img.source_url ?? "https://www.pexels.com";
-  const captionLine = caption
-    ? `*${caption} — [Photo by ${photog} on Pexels](${link})*`
-    : `*[Photo by ${photog} on Pexels](${link})*`;
-  return ["", `![${altText}](${img.url_large})`, "", captionLine, ""].join(
-    "\n",
-  );
+/**
+ * HTML <figure> block for one image. Marked allows raw HTML in markdown
+ * and DOMPurify keeps the figure/img/figcaption + class attributes intact,
+ * so we can drive layout (full / right / left) via CSS classes.
+ */
+function imageHtml(
+  img: InjectImage,
+  caption: string | undefined,
+  layout: ImageLayout,
+): string {
+  const altText = escapeHtml((caption || img.alt || "").trim());
+  const photog = escapeHtml(img.photographer ?? "Pexels");
+  const link = escapeHtml(img.source_url ?? "https://www.pexels.com");
+  const url = escapeHtml(img.url_large);
+  const captionHtml = caption
+    ? `${escapeHtml(caption)} — <a href="${link}" target="_blank" rel="noopener">Photo by ${photog} on Pexels</a>`
+    : `<a href="${link}" target="_blank" rel="noopener">Photo by ${photog} on Pexels</a>`;
+  // Blank lines around the figure keep marked from wrapping it in a <p>.
+  return [
+    "",
+    `<figure class="post-image post-image--${layout}">`,
+    `  <img src="${url}" alt="${altText}" />`,
+    `  <figcaption>${captionHtml}</figcaption>`,
+    `</figure>`,
+    "",
+  ].join("\n");
 }
 
 /**
@@ -965,7 +997,8 @@ function injectImagesIntoBody(opts: {
       if (!img || !p.after_heading) continue;
       const idx = findHeadingLine(p.after_heading);
       if (idx === -1) continue;
-      lines.splice(idx + 1, 0, imageMarkdown(img, p.caption));
+      const layout = normalizeLayout(p.layout);
+      lines.splice(idx + 1, 0, imageHtml(img, p.caption, layout));
       placedSlots.add(slot);
     }
   }
@@ -975,7 +1008,9 @@ function injectImagesIntoBody(opts: {
   if (unplaced.length > 0) {
     result = `${result.trimEnd()}\n\n---\n`;
     for (const img of unplaced) {
-      result += imageMarkdown(img);
+      // Fallback layout for unplaced images is full-width — no surrounding
+      // text to wrap around.
+      result += imageHtml(img, undefined, "full");
     }
   }
   return result;

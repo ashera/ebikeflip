@@ -69,7 +69,8 @@ Rules:
 - Pick 1–2 opinions from the Opinions list and bake them in as editorial stances.
 - Use stats VERBATIM — never round, paraphrase, or invent numbers. Cite them naturally.
 - Adapt 1–2 stories to fit the article. They turn generic prose into something a human would write.
-- For each hero image, output an image_placement object with the slot, the EXACT H2 heading text it should appear after, and a one-sentence caption. The platform inserts the actual image and Pexels credit programmatically — do NOT embed image markdown in body_markdown yourself.
+- For each hero image, output an image_placement object with the slot, the EXACT H2 heading text it should appear after, a one-sentence caption, and a layout choice. The platform inserts the actual image and Pexels credit programmatically — do NOT embed image markdown in body_markdown yourself.
+- Layout choices for image_placements: "full" = full-width break (use sparingly, for shots that deserve emphasis), "right" = float right with text wrapping, "left" = float left with text wrapping. AIM FOR VARIETY: do not make every image full-width. A good post mixes one full + several right/left so the page has visual rhythm.
 - Output ONLY a single valid JSON object — no prose, no markdown fences. Shape:
 
 {
@@ -79,7 +80,12 @@ Rules:
   "tags": ["..."],
   "body_markdown": "the full post in markdown",
   "image_placements": [
-    { "slot": 0, "after_heading": "the H2 to place it after", "caption": "..." }
+    {
+      "slot": 0,
+      "after_heading": "the H2 to place it after",
+      "caption": "...",
+      "layout": "full" | "right" | "left"
+    }
   ]
 }`;
 

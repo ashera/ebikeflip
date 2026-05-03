@@ -3391,4 +3391,58 @@ textarea.input {
 @keyframes submit-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Post body images — three layouts so blog posts get visual rhythm
+   instead of a stack of full-width photos. Floats clear at headings
+   and at <hr>, and collapse to full-width on narrow viewports. */
+.prose .post-image {
+  margin: 1.5em 0;
+}
+.prose .post-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+}
+.prose .post-image figcaption {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--ink-3);
+  margin-top: 0.5em;
+  line-height: 1.45;
+}
+.prose .post-image figcaption a {
+  color: inherit;
+  text-decoration: underline;
+}
+.prose .post-image--full {
+  /* Block-level, full container width. Default behaviour. */
+}
+.prose .post-image--right {
+  float: right;
+  width: 45%;
+  max-width: 360px;
+  margin: 0.5em 0 1em 1.5em;
+}
+.prose .post-image--left {
+  float: left;
+  width: 45%;
+  max-width: 360px;
+  margin: 0.5em 1.5em 1em 0;
+}
+.prose h2,
+.prose h3,
+.prose hr {
+  clear: both;
+}
+@media (max-width: 640px) {
+  .prose .post-image--right,
+  .prose .post-image--left {
+    float: none;
+    width: 100%;
+    max-width: none;
+    margin: 1.5em 0;
+  }
+}
 .prose th { background: var(--surface-sunken); font-weight: 600; }
