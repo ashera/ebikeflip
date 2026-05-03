@@ -603,6 +603,19 @@ CREATE TABLE IF NOT EXISTS blog_post_tags (
 CREATE INDEX IF NOT EXISTS blog_post_tags_tag_idx
   ON blog_post_tags (tag_id, post_id);
 
+-- One row per public blog post view. Logged from the post page via a tiny
+-- client component → server action so SSR isn't blocked. Admin views are
+-- excluded server-side. Roll up to total / 7d / 30d on read.
+CREATE TABLE IF NOT EXISTS blog_post_views (
+  id          BIGSERIAL    PRIMARY KEY,
+  post_id     BIGINT       NOT NULL REFERENCES blog_posts(id) ON DELETE CASCADE,
+  viewed_at   TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  viewer_id   BIGINT       REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS blog_post_views_post_time_idx
+  ON blog_post_views (post_id, viewed_at DESC);
+
 -- Blog Builder: keyword bank used to seed auto-generated articles.
 CREATE TABLE IF NOT EXISTS blog_keywords (
   id            BIGSERIAL    PRIMARY KEY,

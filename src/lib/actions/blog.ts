@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { query, withTransaction } from "@/lib/db";
-import { requireAdmin } from "@/lib/auth";
+import { getCurrentUser, requireAdmin } from "@/lib/auth";
 import { slugify } from "@/lib/blog";
 
 const TITLE_MAX = 200;
@@ -318,4 +318,25 @@ export async function clearBlogHero(formData: FormData): Promise<void> {
   revalidatePath("/blog");
   revalidatePath(`/admin/blog/${id}/edit`);
   redirect(`/admin/blog/${id}/edit?saved=1`);
+}
+
+/**
+ * Fire-and-forget view logger called from a tiny client component on the
+ * public post page. Skips admin viewers so internal traffic doesn't pollute
+ * the counter. Errors are swallowed — analytics shouldn't break rendering.
+ */
+export async function logBlogPostView(postId: string): Promise<void> {
+  if (!/^\d+$/.test(postId)) return;
+  try {
+    const user = await getCurrentUser();
+    if (user?.isAdmin) return;
+    await query(
+      `INSERT INTO blog_post_views (post_id, viewer_id)
+       VALUES ($1::bigint, $2::bigint)`,
+      [postId, user?.id ?? null],
+    );
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[blog] logBlogPostView failed", err);
+  }
 }

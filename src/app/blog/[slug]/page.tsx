@@ -5,6 +5,7 @@ import { query } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { getBaseUrl } from "@/lib/email";
 import { renderMarkdown, stripMarkdown } from "@/lib/blog";
+import { ViewLogger } from "@/app/_components/view-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -288,6 +289,7 @@ export default async function BlogPostPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </article>
+      {isLive && <ViewLogger postId={post.id} />}
     </div>
   );
 }

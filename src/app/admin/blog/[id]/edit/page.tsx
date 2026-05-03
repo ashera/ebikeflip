@@ -10,6 +10,7 @@ import {
   toggleBlogPublished,
   updateBlogPost,
 } from "@/lib/actions/blog";
+import { computeContentStats, daysSince } from "@/lib/blog-stats";
 import { Button, Field, Input, Textarea } from "../../../../_components/ui";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,7 @@ export default async function EditBlogPostPage({
 
   if (!/^\d+$/.test(id)) notFound();
 
-  const [postRes, tagsRes, assignedRes, clusterRes] = await Promise.all([
+  const [postRes, tagsRes, assignedRes, clusterRes, viewsRes] = await Promise.all([
     query<PostRow>(
       `SELECT id::text,
               slug,
@@ -108,12 +109,23 @@ export default async function EditBlogPostPage({
         WHERE generated_post_id = $1::bigint LIMIT 1`,
       [id],
     ),
+    query<{ total: string; week: string; month: string }>(
+      `SELECT
+         COUNT(*)::text AS total,
+         COUNT(*) FILTER (WHERE viewed_at > NOW() - INTERVAL '7 days')::text AS week,
+         COUNT(*) FILTER (WHERE viewed_at > NOW() - INTERVAL '30 days')::text AS month
+        FROM blog_post_views WHERE post_id = $1::bigint`,
+      [id],
+    ),
   ]);
   const post = postRes.rows[0];
   if (!post) notFound();
   const allTags = tagsRes.rows;
   const assigned = new Set(assignedRes.rows.map((r) => r.tag_id));
   const sourceCluster = clusterRes.rows[0] ?? null;
+  const viewStats = viewsRes.rows[0] ?? { total: "0", week: "0", month: "0" };
+  const contentStats = computeContentStats(post.body_md);
+  const daysPublished = daysSince(post.published_at);
 
   const isPublished = !!post.published_at;
   const isScheduled =
@@ -276,6 +288,55 @@ export default async function EditBlogPostPage({
             Save schedule
           </Button>
         </form>
+      </section>
+
+      <section className="form-card" style={{ marginBottom: "var(--s-5)" }}>
+        <h2 className="card-heading" style={{ margin: 0 }}>
+          Stats
+        </h2>
+        <p className="card-sub" style={{ marginTop: 4 }}>
+          Computed from the post body and the view counter on
+          <code> /blog/{post.slug}</code>. Admin views are excluded.
+        </p>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+            gap: "var(--s-3)",
+            marginTop: "var(--s-3)",
+          }}
+        >
+          <StatCell label="Words" value={contentStats.words.toLocaleString()} />
+          <StatCell label="Read time" value={`${contentStats.minutes} min`} />
+          <StatCell label="Headings" value={contentStats.headings} />
+          <StatCell label="Images" value={contentStats.images} />
+          <StatCell
+            label="Internal links"
+            value={contentStats.internalLinks}
+          />
+          <StatCell
+            label="External links"
+            value={contentStats.externalLinks}
+          />
+          <StatCell
+            label="Views (total)"
+            value={Number(viewStats.total).toLocaleString()}
+          />
+          <StatCell
+            label="Views (7d)"
+            value={Number(viewStats.week).toLocaleString()}
+          />
+          <StatCell
+            label="Views (30d)"
+            value={Number(viewStats.month).toLocaleString()}
+          />
+          {daysPublished != null && (
+            <StatCell
+              label="Days published"
+              value={daysPublished === 0 ? "today" : daysPublished}
+            />
+          )}
+        </div>
       </section>
 
       <form
@@ -504,6 +565,47 @@ export default async function EditBlogPostPage({
           Delete this post permanently
         </button>
       </form>
+    </div>
+  );
+}
+
+function StatCell({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div
+      style={{
+        padding: "var(--s-3)",
+        background: "var(--surface-sunken)",
+        border: "1px solid var(--hairline)",
+        borderRadius: 8,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontFamily: "var(--font-mono)",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "var(--ink-3)",
+        }}
+      >
+        {label}
+      </div>
+      <div
+        style={{
+          fontSize: 22,
+          fontWeight: 700,
+          color: "var(--ink-1)",
+          marginTop: 2,
+        }}
+      >
+        {value}
+      </div>
     </div>
   );
 }
