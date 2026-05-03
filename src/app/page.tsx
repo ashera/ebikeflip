@@ -83,6 +83,28 @@ async function getSpecStats(regionId: string | null): Promise<SpecStats> {
   }
 }
 
+type LatestBlogPost = {
+  slug: string;
+  title: string;
+  excerpt: string | null;
+};
+
+async function getLatestPublishedPost(): Promise<LatestBlogPost | null> {
+  try {
+    const r = await query<LatestBlogPost>(
+      `SELECT slug, title, excerpt
+         FROM blog_posts
+        WHERE published_at IS NOT NULL
+          AND published_at <= NOW()
+        ORDER BY published_at DESC
+        LIMIT 1`,
+    );
+    return r.rows[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
 function specRange(min: number | null, max: number | null): string {
   if (min == null && max == null) return "—";
   if (min == null) return String(max);
@@ -175,10 +197,11 @@ export default async function Home({
     r.kind === "selected" || r.kind === "auto" ? r.region : null;
   const regionShort = region ? regionShortName(region) : null;
   const regionId = region ? region.id : null;
-  const [stats, featured, shortlistedIds] = await Promise.all([
+  const [stats, featured, shortlistedIds, latestPost] = await Promise.all([
     getSpecStats(regionId),
     getFeaturedListings(regionId),
     user ? getShortlistIds(user.id) : Promise.resolve(new Set<string>()),
+    getLatestPublishedPost(),
   ]);
 
   return (
@@ -251,6 +274,86 @@ export default async function Home({
           </div>
         </div>
       </section>
+
+      {latestPost && (
+        <section style={{ padding: "var(--s-5) 0 0" }}>
+          <Link
+            href={`/blog/${latestPost.slug}`}
+            style={{
+              display: "block",
+              padding: "var(--s-3) var(--s-4)",
+              background: "var(--surface-sunken)",
+              border: "1px solid var(--hairline)",
+              borderRadius: 10,
+              textDecoration: "none",
+              color: "inherit",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: "var(--s-2)",
+                flexWrap: "wrap",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                  color: "var(--volt-700)",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                From the blog
+              </span>
+              <span
+                style={{
+                  fontWeight: 700,
+                  color: "var(--ink-1)",
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {latestPost.title}
+              </span>
+              <span
+                style={{
+                  color: "var(--ink-2)",
+                  fontSize: "var(--t-body-s)",
+                  fontWeight: 600,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Read →
+              </span>
+            </div>
+            {latestPost.excerpt && (
+              <p
+                style={{
+                  margin: "4px 0 0",
+                  color: "var(--ink-3)",
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 1,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
+                {latestPost.excerpt}
+              </p>
+            )}
+          </Link>
+        </section>
+      )}
 
       {featured.length > 0 && (
         <section className="section">
