@@ -813,6 +813,87 @@ function slugify(input: string): string {
     .slice(0, 80);
 }
 
+type InjectImage = {
+  slot: number;
+  url_large: string;
+  photographer: string | null;
+  alt: string | null;
+  source_url: string | null;
+};
+
+/** Markdown block for one image: image, blank, italic caption with credit. */
+function imageMarkdown(img: InjectImage, caption?: string): string {
+  const altText = (caption || img.alt || "").trim();
+  const photog = img.photographer ?? "Pexels";
+  const link = img.source_url ?? "https://www.pexels.com";
+  const captionLine = caption
+    ? `*${caption} — [Photo by ${photog} on Pexels](${link})*`
+    : `*[Photo by ${photog} on Pexels](${link})*`;
+  return ["", `![${altText}](${img.url_large})`, "", captionLine, ""].join(
+    "\n",
+  );
+}
+
+/**
+ * Splice Pexels images into the model's markdown body using its
+ * image_placements hints (slot + after_heading + caption). Headings are
+ * matched case-insensitively, with substring fallback to tolerate small
+ * wording drift. Any included image that doesn't get placed gets appended
+ * after the body so nothing silently disappears.
+ */
+function injectImagesIntoBody(opts: {
+  bodyMd: string;
+  placements: GeneratedPostJson["image_placements"];
+  images: InjectImage[];
+}): string {
+  const lines = opts.bodyMd.split("\n");
+  const imagesBySlot = new Map(opts.images.map((i) => [i.slot, i]));
+  const placedSlots = new Set<number>();
+
+  function findHeadingLine(target: string): number {
+    const t = target.trim().toLowerCase();
+    if (!t) return -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const m = line.match(/^(#{1,6})\s+(.+?)\s*$/);
+      if (!m) continue;
+      const heading = m[2].toLowerCase().replace(/[.!?:;]+$/, "");
+      const tNorm = t.replace(/[.!?:;]+$/, "");
+      if (
+        heading === tNorm ||
+        heading.includes(tNorm) ||
+        tNorm.includes(heading)
+      ) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  if (Array.isArray(opts.placements)) {
+    for (const p of opts.placements) {
+      const slot = p.slot ?? 0;
+      if (placedSlots.has(slot)) continue;
+      const img = imagesBySlot.get(slot);
+      if (!img || !p.after_heading) continue;
+      const idx = findHeadingLine(p.after_heading);
+      if (idx === -1) continue;
+      lines.splice(idx + 1, 0, imageMarkdown(img, p.caption));
+      placedSlots.add(slot);
+    }
+  }
+
+  let result = lines.join("\n");
+  const unplaced = opts.images.filter((i) => !placedSlots.has(i.slot));
+  if (unplaced.length > 0) {
+    result = `${result.trimEnd()}\n\n---\n`;
+    for (const img of unplaced) {
+      result += imageMarkdown(img);
+    }
+  }
+  return result;
+}
+
 export async function generateBlogPostFromCluster(
   formData: FormData,
 ): Promise<void> {
@@ -859,11 +940,12 @@ export async function generateBlogPostFromCluster(
     ),
     query<{
       slot: number;
+      url_large: string;
       photographer: string | null;
       alt: string | null;
       source_url: string | null;
     }>(
-      `SELECT slot, photographer, alt, source_url
+      `SELECT slot, url_large, photographer, alt, source_url
          FROM blog_cluster_images
         WHERE cluster_id = $1::bigint AND include_in_post = TRUE
         ORDER BY slot`,
@@ -925,23 +1007,14 @@ export async function generateBlogPostFromCluster(
     redirect(`/admin/blog/builder/cluster/${clusterId}?error=bad-output`);
   }
 
-  // Build body_md: append Claude's image placement suggestions at the end
-  // so the user can weave them in manually via the edit page.
-  let bodyMd = String(parsed.body_markdown).trim();
-  if (
-    Array.isArray(parsed.image_placements) &&
-    parsed.image_placements.length > 0
-  ) {
-    bodyMd += "\n\n---\n\n**Suggested image placements:**\n\n";
-    for (const p of parsed.image_placements) {
-      const slot = (p.slot ?? 0) + 1;
-      const where = p.after_heading
-        ? ` after the heading "${p.after_heading}"`
-        : "";
-      const caption = p.caption ?? "(no caption)";
-      bodyMd += `- Slot ${slot}${where}: ${caption}\n`;
-    }
-  }
+  // Inject Pexels images into the body markdown using Claude's placement
+  // hints. Anything Claude didn't match to a heading falls through to the
+  // bottom of the post so no included image silently disappears.
+  const bodyMd = injectImagesIntoBody({
+    bodyMd: String(parsed.body_markdown).trim(),
+    placements: parsed.image_placements,
+    images: imageRes.rows,
+  });
 
   // Slug: prefer Claude's, fall back to slugified title; on conflict,
   // append the cluster id so the insert succeeds.

@@ -69,7 +69,7 @@ Rules:
 - Pick 1–2 opinions from the Opinions list and bake them in as editorial stances.
 - Use stats VERBATIM — never round, paraphrase, or invent numbers. Cite them naturally.
 - Adapt 1–2 stories to fit the article. They turn generic prose into something a human would write.
-- For each hero image, suggest where to place it with a one-sentence caption. Cite Pexels with a link.
+- For each hero image, output an image_placement object with the slot, the EXACT H2 heading text it should appear after, and a one-sentence caption. The platform inserts the actual image and Pexels credit programmatically — do NOT embed image markdown in body_markdown yourself.
 - Output ONLY a single valid JSON object — no prose, no markdown fences. Shape:
 
 {
