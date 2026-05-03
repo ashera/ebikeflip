@@ -88,7 +88,7 @@ Given a keyword cluster, a SERP landscape analysis, hero images, and editorial r
 
 Rules:
 - Title and first paragraph must clearly target the primary keyword.
-- Match the recommended format (listicle, guide, comparison, tutorial) and stay within ±20% of the target word count.
+- Match the recommended format (listicle, guide, comparison, tutorial). Target word count: aim for the SERP recommendation but cap at 1,800 words MAX regardless of what SERP suggests — going longer truncates the response.
 - Cover EVERY topic in "Common topics" — these are table-stakes per the SERP.
 - Treat "Gap topics" as differentiators — cover them deeper than any of the top-ranking pages.
 - Weave the secondary cluster keywords in naturally throughout. Do not keyword-stuff.

@@ -1251,20 +1251,25 @@ export async function generateBlogPostFromCluster(
   // Persist whatever Claude sent us (text + raw tool input as JSON) so
   // we can inspect it on the cluster page if anything went sideways.
   const captured = submitCall
-    ? `[tool_use submit_post]\n${JSON.stringify(submitCall.input, null, 2)}`
-    : result.text;
+    ? `[tool_use submit_post]\n[stop_reason: ${result.stopReason ?? "?"}]\n${JSON.stringify(submitCall.input, null, 2)}`
+    : `[stop_reason: ${result.stopReason ?? "?"}]\n${result.text}`;
   if (!parsed || !parsed.title || !parsed.body_markdown) {
-    await recordGenAttempt(
-      clusterId,
-      captured,
-      "submit_post tool was not invoked, or required fields (title/body_markdown) were missing",
-    );
+    const truncated = result.stopReason === "max_tokens";
+    const errMsg = truncated
+      ? "Response was truncated by max_tokens before body_markdown completed. Try regenerating — the prompt should target a shorter post now."
+      : !submitCall
+        ? "submit_post tool was not invoked at all (Claude wrote free text instead)"
+        : "submit_post tool was invoked but required fields (title/body_markdown) were missing";
+    await recordGenAttempt(clusterId, captured, errMsg);
     // eslint-disable-next-line no-console
     console.error(
-      "[post-gen] submit_post tool not invoked or missing fields",
+      "[post-gen] submit_post incomplete",
+      `stop_reason=${result.stopReason ?? "?"}`,
       captured.slice(0, 500),
     );
-    redirect(`/admin/blog/builder/cluster/${clusterId}?error=bad-output`);
+    redirect(
+      `/admin/blog/builder/cluster/${clusterId}?error=${truncated ? "truncated" : "bad-output"}`,
+    );
   }
 
   // First included image becomes the hero banner. We fetch its bytes here

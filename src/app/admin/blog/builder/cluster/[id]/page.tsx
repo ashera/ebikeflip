@@ -60,6 +60,8 @@ const ERRORS: Record<string, string> = {
     "Include at least one hero image before generating a post.",
   "invalid-phrase":
     "Custom keyword must be 2–200 characters.",
+  truncated:
+    "Claude's response was cut short by the output limit before the post body finished. Try regenerating — the prompt now caps body length tighter.",
 };
 
 type ImageRow = {

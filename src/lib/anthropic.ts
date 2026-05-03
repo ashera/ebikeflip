@@ -62,6 +62,7 @@ export type CallResult =
       text: string;
       model: string;
       toolUses: ToolUseBlock[];
+      stopReason: string | null;
       raw: unknown;
     }
   | { ok: false; error: string };
@@ -107,6 +108,7 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
         name?: string;
         input?: unknown;
       }>;
+      stop_reason?: string;
     };
     const blocks = json.content ?? [];
     // Server-managed tools (web_search, web_fetch) emit non-text content
@@ -128,7 +130,14 @@ export async function callClaude(opts: CallOpts): Promise<CallResult> {
     if (!text && toolUses.length === 0) {
       return { ok: false, error: "Empty response from Anthropic" };
     }
-    return { ok: true, text, model, toolUses, raw: json };
+    return {
+      ok: true,
+      text,
+      model,
+      toolUses,
+      stopReason: json.stop_reason ?? null,
+      raw: json,
+    };
   } catch (e) {
     return {
       ok: false,
