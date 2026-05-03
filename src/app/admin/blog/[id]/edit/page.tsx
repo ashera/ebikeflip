@@ -79,7 +79,7 @@ export default async function EditBlogPostPage({
 
   if (!/^\d+$/.test(id)) notFound();
 
-  const [postRes, tagsRes, assignedRes] = await Promise.all([
+  const [postRes, tagsRes, assignedRes, clusterRes] = await Promise.all([
     query<PostRow>(
       `SELECT id::text,
               slug,
@@ -100,11 +100,20 @@ export default async function EditBlogPostPage({
       `SELECT tag_id::text FROM blog_post_tags WHERE post_id = $1::bigint`,
       [id],
     ),
+    // Source cluster (if this post was generated from one). Drives the
+    // "Back to cluster" link so the user's journey survives a refresh
+    // even after the from-cluster URL param is gone.
+    query<{ id: string; name: string }>(
+      `SELECT id::text, name FROM blog_clusters
+        WHERE generated_post_id = $1::bigint LIMIT 1`,
+      [id],
+    ),
   ]);
   const post = postRes.rows[0];
   if (!post) notFound();
   const allTags = tagsRes.rows;
   const assigned = new Set(assignedRes.rows.map((r) => r.tag_id));
+  const sourceCluster = clusterRes.rows[0] ?? null;
 
   const isPublished = !!post.published_at;
   const isScheduled =
@@ -114,9 +123,27 @@ export default async function EditBlogPostPage({
 
   return (
     <div className="page admin-page" style={{ maxWidth: 720 }}>
-      <Link href="/admin/blog" className="back-link">
-        ← All posts
-      </Link>
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--s-3)",
+          flexWrap: "wrap",
+          alignItems: "center",
+        }}
+      >
+        <Link href="/admin/blog" className="back-link">
+          ← All posts
+        </Link>
+        {sourceCluster && (
+          <Link
+            href={`/admin/blog/builder/cluster/${sourceCluster.id}`}
+            className="back-link"
+            title="The cluster this post was generated from"
+          >
+            ← Back to cluster: {sourceCluster.name}
+          </Link>
+        )}
+      </div>
 
       <header className="admin-header">
         <p className="eyebrow">Admin · Blog</p>
