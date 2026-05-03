@@ -40,9 +40,23 @@ export type PostPromptImage = {
   source_url: string | null;
 };
 
-export const POST_SYSTEM_PROMPT = `You are a senior content writer for ebikeflip, a peer-to-peer marketplace for buying and selling used electric bikes (eBikes).
+/**
+ * Editorial reference content pulled from the references/ markdown files.
+ * voice and humour shape the character of the writer; opinions, stats and
+ * stories are raw materials the model selects from. Any field can be null
+ * if the underlying file is missing — the prompt skips empty sections.
+ */
+export type PostPromptReferences = {
+  voice: string | null;
+  humour: string | null;
+  opinions: string | null;
+  stats: string | null;
+  stories: string | null;
+};
 
-Given a keyword cluster, a SERP landscape analysis, and a set of hero images, write a single complete blog post that targets the cluster's primary keyword while naturally covering its related queries.
+const POST_SYSTEM_BASE = `You are a senior content writer for ebikeflip, a peer-to-peer marketplace for buying and selling used electric bikes (eBikes).
+
+Given a keyword cluster, a SERP landscape analysis, hero images, and editorial reference materials, write a single complete blog post that targets the cluster's primary keyword while naturally covering its related queries.
 
 Rules:
 - Title and first paragraph must clearly target the primary keyword.
@@ -50,6 +64,11 @@ Rules:
 - Cover EVERY topic in "Common topics" — these are table-stakes per the SERP.
 - Treat "Gap topics" as differentiators — cover them deeper than any of the top-ranking pages.
 - Weave the secondary cluster keywords in naturally throughout. Do not keyword-stuff.
+- Match the VOICE GUIDE in tone, rhythm, and vocabulary — NOT generic AI prose.
+- Apply the HUMOUR GUIDE consistently. Dad-energy is mandatory, not decorative.
+- Pick 1–2 opinions from the Opinions list and bake them in as editorial stances.
+- Use stats VERBATIM — never round, paraphrase, or invent numbers. Cite them naturally.
+- Adapt 1–2 stories to fit the article. They turn generic prose into something a human would write.
 - For each hero image, suggest where to place it with a one-sentence caption. Cite Pexels with a link.
 - Output ONLY a single valid JSON object — no prose, no markdown fences. Shape:
 
@@ -64,13 +83,29 @@ Rules:
   ]
 }`;
 
+export function composePostSystemPrompt(refs: PostPromptReferences): string {
+  const parts: string[] = [POST_SYSTEM_BASE];
+  if (refs.voice) {
+    parts.push("");
+    parts.push("=== VOICE GUIDE ===");
+    parts.push(refs.voice.trim());
+  }
+  if (refs.humour) {
+    parts.push("");
+    parts.push("=== HUMOUR GUIDE ===");
+    parts.push(refs.humour.trim());
+  }
+  return parts.join("\n");
+}
+
 export function composePostUserPrompt(opts: {
   cluster: PostPromptCluster;
   members: PostPromptMember[];
   serp: PostPromptSerp | null;
   images: PostPromptImage[];
+  references: PostPromptReferences;
 }): string {
-  const { cluster, members, serp, images } = opts;
+  const { cluster, members, serp, images, references } = opts;
   const primary = members.find((m) => m.is_primary);
   const secondary = members.filter((m) => !m.is_primary);
 
@@ -154,6 +189,21 @@ export function composePostUserPrompt(opts: {
     }
   }
   lines.push("");
+
+  lines.push("EDITORIAL MATERIALS");
+  lines.push("");
+  lines.push("=== OPINIONS (pick 1–2 and bake in as editorial stances) ===");
+  lines.push(references.opinions?.trim() ?? "(opinions reference missing)");
+  lines.push("");
+  lines.push(
+    "=== STATS (use verbatim — never round, paraphrase, or invent) ===",
+  );
+  lines.push(references.stats?.trim() ?? "(stats reference missing)");
+  lines.push("");
+  lines.push("=== STORIES (adapt 1–2 to fit the article) ===");
+  lines.push(references.stories?.trim() ?? "(stories reference missing)");
+  lines.push("");
+
   lines.push("Write the post now and return only the JSON.");
 
   return lines.join("\n");

@@ -22,9 +22,11 @@ import {
 } from "../../../../../_components/submit-button";
 import { GeneratePostDialog } from "../../../../../_components/generate-post-dialog";
 import {
-  POST_SYSTEM_PROMPT,
+  composePostSystemPrompt,
   composePostUserPrompt,
+  type PostPromptReferences,
 } from "@/lib/blog-post-prompt";
+import { loadBlogReferences } from "@/lib/blog-references";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +134,7 @@ export default async function ClusterReviewPage({
 
   if (!/^\d+$/.test(id)) notFound();
 
-  const [clusterRes, membersRes, imageRes] = await Promise.all([
+  const [clusterRes, membersRes, imageRes, referenceFiles] = await Promise.all([
     query<ClusterRow>(
       `SELECT id::text,
               name,
@@ -174,7 +176,18 @@ export default async function ClusterReviewPage({
         ORDER BY slot`,
       [id],
     ),
+    loadBlogReferences(),
   ]);
+  const referencesByKey = new Map(
+    referenceFiles.map((f) => [f.key, f.body]),
+  );
+  const references: PostPromptReferences = {
+    voice: referencesByKey.get("voice") ?? null,
+    humour: referencesByKey.get("humour") ?? null,
+    opinions: referencesByKey.get("opinions") ?? null,
+    stats: referencesByKey.get("stats") ?? null,
+    stories: referencesByKey.get("stories") ?? null,
+  };
   const cluster = clusterRes.rows[0];
   if (!cluster) notFound();
   const members = membersRes.rows;
@@ -197,6 +210,7 @@ export default async function ClusterReviewPage({
   const includedImages = slots.filter(
     (s): s is ImageRow => s != null && s.include_in_post,
   );
+  const postSystemPrompt = composePostSystemPrompt(references);
   const postUserPrompt = composePostUserPrompt({
     cluster: { name: cluster.name, intent: cluster.intent },
     members: members.map((m) => ({
@@ -210,6 +224,7 @@ export default async function ClusterReviewPage({
       alt: i.alt,
       source_url: i.source_url,
     })),
+    references,
   });
   const gateReason = postDone
     ? "A post has already been generated for this cluster."
@@ -291,7 +306,7 @@ export default async function ClusterReviewPage({
           <GeneratePostDialog
             disabled={!canGenerate}
             disabledReason={gateReason}
-            systemPrompt={POST_SYSTEM_PROMPT}
+            systemPrompt={postSystemPrompt}
             userPrompt={postUserPrompt}
           />
         </div>
