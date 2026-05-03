@@ -14,7 +14,7 @@ export const WEB_SEARCH_TOOL = {
 } as const;
 
 export const WEB_FETCH_TOOL = {
-  type: "web_fetch_20250722",
+  type: "web_fetch_20260309",
   name: "web_fetch",
   max_uses: 3,
 } as const;
