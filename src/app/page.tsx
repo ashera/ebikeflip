@@ -258,8 +258,8 @@ export default async function Home({
             {regionShort ? (
               <>
                 <h1>
-                  The <span className="accent">{regionShort}</span> eBike
-                  marketplace.
+                  The <span className="accent">{regionShort}</span>{" "}
+                  <span className="accent">eBike</span> marketplace.
                 </h1>
                 <p className="sub">
                   <strong>Always free</strong> to list and buy. Connect with

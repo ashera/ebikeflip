@@ -1339,7 +1339,7 @@ textarea.input {
    collapses behind the text and there's no real estate for it. */
 .hero-toolbox {
   position: absolute;
-  bottom: var(--s-7);
+  bottom: var(--s-4);
   right: var(--s-7);
   z-index: 1;
   width: min(300px, 38%);
